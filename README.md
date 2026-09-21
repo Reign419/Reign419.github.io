@@ -12,6 +12,11 @@ The application imports microplate-reader data from XLSX or CSV files, visualize
 - Chinese and English interface
 - Installable PWA with offline support
 - Local data processing in the browser
+- Live BLE result reception on supported browsers
+- Wi-Fi/WebSocket result reception for iPhone, Android, and desktop browsers
+- Local device history and CSV export
+
+See [DEVICE_INTERFACE.md](DEVICE_INTERFACE.md) for the BLE and Wi-Fi message contract.
 
 ## Important Notice
 

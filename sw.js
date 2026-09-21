@@ -1,5 +1,5 @@
-const CACHE_NAME = "plantsos-pwa-v4-bilingual";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/cuhksz-igem-logo.png"];
+const CACHE_NAME = "plantsos-pwa-v6-wifi-ble";
+const APP_SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/cuhksz-igem-logo.png", "/ble.css", "/wifi.css", "/ble.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
