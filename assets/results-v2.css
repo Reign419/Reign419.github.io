@@ -1,0 +1,28 @@
+body[data-plantsos-loading] .hero-result,
+body[data-plantsos-loading] .metrics-grid,
+body[data-plantsos-loading] .plate-panel,
+body[data-plantsos-loading] .recent-panel,
+body[data-plantsos-loading] .demo-badge {visibility:hidden}
+.overview-select {display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:20px 0}
+.result-notes {padding:16px 22px;margin-bottom:16px}
+.result-notes summary {cursor:pointer;font-weight:700}
+.result-notes p,.calibration-state p {line-height:1.65;margin:12px 0;color:#365c3d}
+.calibration-state {padding:24px}
+.calibration-state h2 {margin:0 0 12px;font-size:1.3rem}
+.demo-curve-box {margin-top:22px;padding-top:18px;border-top:2px solid #c4d6b0}
+.demo-curve-box>strong {display:block;margin-bottom:14px;color:#7b5526}
+.sample-signal-plot>p {font-size:.9rem;font-weight:700;margin:0 0 6px}
+.sample-signal-plot>small {font-size:.8rem;display:block;margin-top:4px}
+.result-plot-empty {min-height:170px;display:flex;flex-direction:column;justify-content:center;padding:20px}
+.hero-copy .big-number {flex-wrap:wrap}
+.qc-badge {white-space:normal;text-align:center}
+.concentration-copy strong {overflow-wrap:anywhere}
+.bottom-nav {z-index:20}
+.import-button:disabled {opacity:.5;cursor:default}
+@media (max-width:650px){
+  .overview-select {gap:12px}
+  .result-notes,.calibration-state {padding:16px}
+  .hero-mini-chart {min-width:0}
+  .concentration-copy strong {font-size:1.3rem}
+  .calibration-state .import-button {white-space:normal}
+}
