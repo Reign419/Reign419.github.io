@@ -7,10 +7,21 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 .result-notes {padding:16px 22px;margin-bottom:16px}
 .result-notes summary {cursor:pointer;font-weight:700}
 .result-notes p,.calibration-state p {line-height:1.65;margin:12px 0;color:#365c3d}
-.calibration-state {padding:24px}
-.calibration-state h2 {margin:0 0 12px;font-size:1.3rem}
-.demo-curve-box {margin-top:22px;padding-top:18px;border-top:2px solid #c4d6b0}
-.demo-curve-box>strong {display:block;margin-bottom:14px;color:#7b5526}
+.calibration-state {padding:30px;max-width:920px;margin:0 auto}
+.calibration-heading {display:flex;align-items:flex-start;gap:14px}
+.calibration-heading h2 {margin:0;font-size:1.35rem}
+.calibration-heading p {margin:7px 0 0}
+.calibration-step {display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:#ffeb74;border:2px solid #2f673d;font-weight:800;color:#244d30}
+.calibration-import {margin:18px 0 8px}
+.calibration-format {font-size:.9rem}
+.calibration-progress {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:24px}
+.calibration-analyte {display:flex;flex-direction:column;gap:5px;padding:16px;border:2px solid #b5c9a1;border-radius:18px;background:#fbfcf4}
+.calibration-analyte strong {font-size:1.05rem}
+.calibration-analyte span {font-weight:750}
+.calibration-analyte .ready {color:#26733a}
+.calibration-analyte .pending {color:#8a6224}
+.calibration-analyte small {color:#5d715f}
+.calibration-warning {margin-top:20px!important;padding:12px 14px;border-radius:12px;background:#fff8dc;color:#72531f!important}
 .sample-signal-plot>p {font-size:.9rem;font-weight:700;margin:0 0 6px}
 .sample-signal-plot>small {font-size:.8rem;display:block;margin-top:4px}
 .result-plot-empty {min-height:170px;display:flex;flex-direction:column;justify-content:center;padding:20px}
@@ -22,6 +33,7 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 @media (max-width:650px){
   .overview-select {gap:12px}
   .result-notes,.calibration-state {padding:16px}
+  .calibration-progress {grid-template-columns:1fr}
   .hero-mini-chart {min-width:0}
   .concentration-copy strong {font-size:1.3rem}
   .calibration-state .import-button {white-space:normal}

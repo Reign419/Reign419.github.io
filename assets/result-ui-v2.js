@@ -38,25 +38,39 @@ export function makeUi(React, JSX) {
         ...dots),
       h("small",{},rows.length+" "+text(locale,"个实际导入/接收点 · 未拟合","imported / received points · No fitting")));
   }
-  function Calibration({locale, demo, DemoPlot}) {
-    const [expanded,setExpanded]=React.useState(false);
-    const show=demo || expanded;
+  function Calibration({locale, records=[], onImport}) {
+    const analytes=["SA","ABA","JA-Ile"];
+    const countPairs=analyte=>records.filter(row=>
+      data.normalizeAnalyte(row.analyte)===analyte &&
+      data.finiteNumber(row.concentration)!==null &&
+      data.finiteNumber(row.signal)!==null).length;
+    const totalPairs=analytes.reduce((sum,analyte)=>sum+countPairs(analyte),0);
     return h("section",{className:"panel calibration-state"},
-      h("h2",{},text(locale,"标准曲线与标定","Calibration")),
-      h("p",{},text(locale,
-        "当前未建立真实标定曲线。样本结果不能替代已知浓度的标准品；SA、ABA 和 JA-Ile 需要各自的标定。",
-        "No validated calibration is loaded. Sample results do not replace known-concentration standards. SA, ABA and JA-Ile need separate calibrations.")),
-      h("p",{},text(locale,
-        "已有 value 的记录直接显示。只有 signal 的记录保留采集读数并标为待标定；本版本不会自动拟合或换算浓度。",
-        "Provided values are displayed directly. Signal-only records retain their readings and are marked uncalibrated. This version does not fit or calculate concentrations automatically.")),
-      !demo && h("button",{type:"button",className:"import-button",onClick:()=>setExpanded(!expanded)},
-        text(locale,expanded?"收起演示曲线":"查看独立演示曲线",expanded?"Hide demo curve":"View separate demo curve")),
-      show && h("div",{className:"demo-curve-box"},
-        h("strong",{},text(locale,"演示示意图 · 不用于本次样本计算","Illustration only · Not used for sample calculations")),
-        JSX.jsx(DemoPlot,{locale}),
-        h("p",{},text(locale,
-          "7 个圆点是预设演示点，曲线由固定参数生成。没有进行本次实验拟合，不提供 R²。",
-          "The 7 dots are preset examples and the curve uses fixed parameters. No experimental fit was performed; no R² is reported."))));
+      h("div",{className:"calibration-heading"},
+        h("span",{className:"calibration-step"},"1"),
+        h("div",{},
+          h("h2",{},text(locale,"导入标准品数据","Import calibration standards")),
+          h("p",{},text(locale,
+            "每种分析物需要单独的一组已知浓度与采集信号，建议至少 6 个浓度点。",
+            "Each analyte needs its own known-concentration and signal pairs; at least 6 concentration levels are recommended.")))),
+      h("button",{type:"button",className:"import-button calibration-import",onClick:onImport},
+        text(locale,"选择标定文件","Choose calibration file")),
+      h("p",{className:"calibration-format"},text(locale,
+        "文件字段：analyte、value、unit、signal；value 必须是标准品的已知浓度。",
+        "Required fields: analyte, value, unit and signal. Value must be the known standard concentration.")),
+      h("div",{className:"calibration-progress","aria-label":text(locale,"候选标定点数量","Candidate calibration pairs")},
+        ...analytes.map(analyte=>{
+          const count=countPairs(analyte),ready=count>=6;
+          return h("div",{className:"calibration-analyte",key:analyte},
+            h("strong",{},analyte),
+            h("span",{className:ready?"ready":"pending"},
+              count+text(locale," 个候选点"," candidate pairs")),
+            h("small",{},ready?text(locale,"数量已达到建议值","Recommended count reached"):
+              text(locale,"建议至少 6 个","At least 6 recommended")));
+        })),
+      totalPairs>0 && h("p",{className:"calibration-warning"},text(locale,
+        "这些记录仅是候选点。请确认它们来自已知浓度的标准品；普通样本不能用于建立标定曲线。",
+        "These are candidate pairs only. Confirm that they come from known-concentration standards; ordinary samples cannot establish calibration.")));
   }
   function Notes({locale}) {
     return h("details",{className:"panel result-notes"},
