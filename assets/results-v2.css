@@ -30,6 +30,9 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 .candidate-calibration-plot p {margin:8px 0 0;font-size:.86rem}
 .calibration-dot {fill:#fff07b;stroke:#356b3d;stroke-width:3px}
 .calibration-dot.qc-alert {fill:#f39a83;stroke:#a83e32}
+.calibration-fit-line {fill:none;stroke:#356b3d;stroke-width:3px;stroke-linecap:round}
+.fit-summary {margin-top:10px;padding:10px 12px;border-radius:12px;background:#eef6d2;color:#315f39;font:700 .82rem/1.5 ui-monospace,monospace}
+.analysis-warning {margin-top:10px!important;padding:11px 13px;border-left:4px solid #d07a38;border-radius:10px;background:#fff1da;color:#7a491f!important}
 .candidate-plot-empty {margin-top:20px;padding:30px;text-align:center;color:#6f786f;border:2px dashed #b5c9a1;border-radius:18px}
 .sample-signal-plot>p {font-size:.9rem;font-weight:700;margin:0 0 6px}
 .sample-signal-plot>small {font-size:.8rem;display:block;margin-top:4px}

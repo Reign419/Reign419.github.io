@@ -116,6 +116,67 @@ export function concentrationText(row, locale) {
   if (row.concentration === null) return locale === "zh" ? "待标定" : "Uncalibrated";
   return formatNumber(row.concentration);
 }
+function calibrationR2(points, predict) {
+  const mean = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+  const sst = points.reduce((sum, point) => sum + (point.y - mean) ** 2, 0);
+  const sse = points.reduce((sum, point) => sum + (point.y - predict(point.x)) ** 2, 0);
+  return {sse, r2: sst === 0 ? (sse < 1e-12 ? 1 : 0) : 1 - sse / sst};
+}
+function linearCalibration(points) {
+  const meanX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+  const meanY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+  const denominator = points.reduce((sum, point) => sum + (point.x - meanX) ** 2, 0);
+  const slope = denominator === 0 ? 0 : points.reduce((sum, point) => sum + (point.x - meanX) * (point.y - meanY), 0) / denominator;
+  const intercept = meanY - slope * meanX;
+  const predict = x => intercept + slope * x;
+  return {model:"linear", slope, intercept, predict, ...calibrationR2(points, predict)};
+}
+export function fitCalibration(input) {
+  const points = (input || []).map(point => ({x:finiteNumber(point.x), y:finiteNumber(point.y)}))
+    .filter(point => point.x !== null && point.y !== null).sort((a,b)=>a.x-b.x);
+  if (points.length < 2 || new Set(points.map(point=>point.x)).size < 2) return null;
+  const linear = linearCalibration(points);
+  const positives = points.filter(point=>point.x>0);
+  if (points.length < 5 || new Set(positives.map(point=>point.x)).size < 4) return linear;
+  const minimumPositive = Math.min(...positives.map(point=>point.x));
+  const prepared = points.map(point=>({...point,z:Math.log(point.x>0?point.x:minimumPositive/10)}));
+  const zs=prepared.map(point=>point.z), ys=prepared.map(point=>point.y);
+  const minZ=Math.min(...zs),maxZ=Math.max(...zs),zRange=maxZ-minZ||1;
+  const minY=Math.min(...ys),maxY=Math.max(...ys),yRange=maxY-minY||1;
+  const edge=Math.max(1,Math.floor(prepared.length/4));
+  const lowMean=prepared.slice(0,edge).reduce((sum,p)=>sum+p.y,0)/edge;
+  const highMean=prepared.slice(-edge).reduce((sum,p)=>sum+p.y,0)/edge;
+  const evaluate=params=>{
+    const [base,delta,mid,logSlope]=params,slope=Math.exp(logSlope);
+    const predictZ=z=>base+delta/(1+Math.exp(-slope*(z-mid)));
+    return prepared.reduce((sum,p)=>sum+(p.y-predictZ(p.z))**2,0);
+  };
+  let best=null;
+  for(const midFraction of [.25,.5,.75])for(const slopeSeed of [.5,1,2,4]){
+    let params=[lowMean,highMean-lowMean,minZ+zRange*midFraction,Math.log(slopeSeed)];
+    let score=evaluate(params),steps=[yRange*.35,yRange*.35,zRange*.2,.45];
+    for(let round=0;round<160;round++){
+      let improved=false;
+      for(let index=0;index<4;index++)for(const direction of [-1,1]){
+        const candidate=params.slice();candidate[index]+=steps[index]*direction;
+        candidate[2]=Math.max(minZ-zRange,Math.min(maxZ+zRange,candidate[2]));
+        candidate[3]=Math.max(-4,Math.min(4,candidate[3]));
+        const next=evaluate(candidate);
+        if(next<score){params=candidate;score=next;improved=true;}
+      }
+      if(!improved)steps=steps.map(step=>step*.72);
+      if(Math.max(...steps)<1e-8)break;
+    }
+    if(!best||score<best.score)best={params,score};
+  }
+  const [base,delta,mid,logSlope]=best.params,hill=Math.exp(logSlope),ec50=Math.exp(mid);
+  const predict=x=>base+delta/(1+Math.exp(-hill*(Math.log(x>0?x:minimumPositive/10)-mid)));
+  const logistic={model:"4PL",bottom:base,top:base+delta,ec50,hill,predict,...calibrationR2(points,predict)};
+  const safe=value=>Math.max(value,1e-12),n=points.length;
+  const linearAic=n*Math.log(safe(linear.sse)/n)+4;
+  const logisticAic=n*Math.log(safe(logistic.sse)/n)+8;
+  return logisticAic+2<linearAic?logistic:linear;
+}
 export function qcText(row, locale) {
   if (row.concentration === null && String(row.qc).toUpperCase() === "OK") return locale === "zh" ? "OK · 待标定" : "OK · Uncalibrated";
   const known = {

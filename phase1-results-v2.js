@@ -1,6 +1,5 @@
 const PHASE_LANGUAGE_KEY="plantsos-language-v1";
 let installPrompt=null;
-let sourceModal=null;
 let installModal=null;
 let settingsModal=null;
 let refreshQueued=false;
@@ -35,12 +34,9 @@ function createModal(className){const backdrop=document.createElement('div');bac
 function openModal(modal){modal.classList.add('is-open');document.body.style.overflow='hidden';modal.querySelector('.phase-modal-close').focus()}
 function closeModal(modal){modal.classList.remove('is-open');if(!document.querySelector('.phase-modal-backdrop.is-open,.ble-backdrop.is-open'))document.body.style.overflow=''}
 
-function ensureSourceModal(){if(sourceModal)return;sourceModal=createModal('phase-source-modal');sourceModal.querySelector('.phase-modal-body').innerHTML='<div class="phase-source-list"><button class="phase-source-option" data-source-device type="button"><span class="phase-source-icon">◉</span><span class="phase-source-copy"><strong></strong><small></small></span><span class="phase-source-arrow">→</span></button><button class="phase-source-option" data-source-file type="button"><span class="phase-source-icon">▤</span><span class="phase-source-copy"><strong></strong><small></small></span><span class="phase-source-arrow">→</span></button><button class="phase-source-option" data-source-demo type="button"><span class="phase-source-icon">◇</span><span class="phase-source-copy"><strong></strong><small></small></span><span class="phase-source-arrow">→</span></button></div>';sourceModal.querySelector('[data-source-device]').addEventListener('click',()=>{closeModal(sourceModal);openDevicePanel()});sourceModal.querySelector('[data-source-file]').addEventListener('click',()=>{closeModal(sourceModal);document.querySelector('input[type=file]')?.click()});sourceModal.querySelector('[data-source-demo]').addEventListener('click',()=>{closeModal(sourceModal);window.dispatchEvent(new CustomEvent('plantsos:demo'));showToast(p('demoLoaded'))})}
 function ensureInstallModal(){if(installModal)return;installModal=createModal('phase-install-modal');installModal.querySelector('.phase-modal-body').innerHTML='<div class="phase-install-copy"></div>'}
 function ensureSettingsModal(){if(settingsModal)return;settingsModal=createModal('phase-settings-modal');settingsModal.querySelector('.phase-modal-body').innerHTML='<div class="phase-setting-row"><div><strong data-setting-language></strong><small data-setting-language-desc></small></div><div class="phase-language-buttons"><button type="button" data-lang="zh">中文</button><button type="button" data-lang="en">EN</button></div></div><div class="phase-setting-row"><div><strong data-setting-local></strong><small data-setting-local-desc></small></div><span>✓</span></div>';settingsModal.querySelectorAll('[data-lang]').forEach(button=>button.addEventListener('click',()=>{const target=[...document.querySelectorAll('.language-switch button')].find(item=>item.textContent.trim()===(button.dataset.lang==='zh'?'中文':'EN'));target?.click()}))}
 
-function openSourceModal(){ensureSourceModal();refreshPhaseUi();openModal(sourceModal)}
-function openDevicePanel(){document.querySelector('.ble-fab')?.click()}
 function openSettings(){ensureSettingsModal();refreshPhaseUi();openModal(settingsModal)}
 function isIos(){return /iphone|ipad|ipod/i.test(navigator.userAgent)}
 function isStandalone(){return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}
@@ -50,7 +46,6 @@ function showToast(message){document.querySelector('.phase-toast')?.remove();con
 
 function refreshPhaseUi(){
   ensureNavigation();document.querySelectorAll('[data-phase-settings] span').forEach(span=>setText(span,p('settings')));document.querySelectorAll('[data-phase-install] span').forEach(span=>setText(span,p('install')));setText(document.querySelector('.run-strip .import-button'),p('dataSource'));
-  if(sourceModal){setText(sourceModal.querySelector('h2'),p('chooseSource'));sourceModal.querySelector('.phase-modal-close').setAttribute('aria-label',p('close'));const options=sourceModal.querySelectorAll('.phase-source-option');[["connectTitle","connectDesc"],["importTitle","importDesc"],["demoTitle","demoDesc"]].forEach((keys,index)=>{setText(options[index].querySelector('strong'),p(keys[0]));setText(options[index].querySelector('small'),p(keys[1]))})}
   if(installModal){setText(installModal.querySelector('h2'),p('installTitle'));installModal.querySelector('.phase-modal-close').setAttribute('aria-label',p('close'))}
   if(settingsModal){setText(settingsModal.querySelector('h2'),p('settingsTitle'));setText(settingsModal.querySelector('[data-setting-language]'),p('language'));setText(settingsModal.querySelector('[data-setting-language-desc]'),p('languageDesc'));setText(settingsModal.querySelector('[data-setting-local]'),p('localData'));setText(settingsModal.querySelector('[data-setting-local-desc]'),p('localDataDesc'))}
 }

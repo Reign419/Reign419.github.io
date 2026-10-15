@@ -50,6 +50,12 @@ export function makeUi(React, JSX) {
     const selectedRows=records.map(row=>({row,x:data.convertConcentration(row,selectedUnit),y:data.finiteNumber(row.signal)}))
       .filter(point=>data.normalizeAnalyte(point.row.analyte)===selected&&point.x!==null&&point.y!==null)
       .sort((a,b)=>a.x-b.x);
+    const fit=data.fitCalibration(selectedRows.map(point=>({x:point.x,y:point.y})));
+    const virtualSource=selectedRows.find(point=>/^(simulation|demo|test)$/i.test(String(point.row.source||"")))?.row.source;
+    const virtualLabel=selectedRows.find(point=>/(模拟|测试|demo|test|sim)/i.test(`${point.row.sample} ${point.row.run} ${point.row.time}`));
+    const virtualReason=virtualSource?
+      text(locale,`数据来源被标记为 ${virtualSource}`,`source is marked as ${virtualSource}`):
+      virtualLabel?text(locale,"样本名、批次或时间字段包含测试标记","sample, run, or time fields contain a test marker"):"";
     const plot=selectedRows.length>=2?(()=>{
       const width=720,height=310,left=68,right=24,top=24,bottom=58;
       const xs=selectedRows.map(point=>point.x),ys=selectedRows.map(point=>point.y);
@@ -60,18 +66,23 @@ export function makeUi(React, JSX) {
       const py=value=>top+(y1-value)/(y1-y0)*(height-top-bottom);
       const xTicks=Array.from({length:4},(_,index)=>x0+(x1-x0)*index/3);
       const yTicks=Array.from({length:4},(_,index)=>y0+(y1-y0)*index/3);
+      const fitPath=fit?Array.from({length:100},(_,index)=>{
+        const x=xMin+(xMax-xMin)*index/99;
+        return `${index?"L":"M"}${px(x).toFixed(2)},${py(fit.predict(x)).toFixed(2)}`;
+      }).join(" "):"";
       return h("section",{className:"candidate-calibration-plot"},
         h("div",{className:"candidate-plot-heading"},
           h("h3",{},selected+text(locale," · 浓度–信号图"," · Concentration–signal plot")),
-          h("span",{},text(locale,"实际数据 · 未拟合","Actual data · Not fitted"))),
+          h("span",{},fit?`${fit.model} · R² ${Math.max(-9.999,fit.r2).toFixed(3)}`:text(locale,"数据不足","Insufficient data"))),
         h("svg",{className:"curve-chart",viewBox:`0 0 ${width} ${height}`,role:"img",
-          "aria-label":text(locale,`${selected} 候选标定点散点图`,`${selected} candidate calibration scatter plot`)},
+          "aria-label":text(locale,`${selected} 数据拟合图`,`${selected} fitted data plot`)},
           ...yTicks.map((tick,index)=>h("g",{key:"y-"+index},
             h("line",{x1:left,x2:width-right,y1:py(tick),y2:py(tick),className:"gridline"}),
             h("text",{x:left-10,y:py(tick)+4,textAnchor:"end"},data.formatNumber(tick)))),
           ...xTicks.map((tick,index)=>h("text",{key:"x-"+index,x:px(tick),y:height-30,textAnchor:"middle"},data.formatNumber(tick))),
           h("line",{x1:left,x2:left,y1:top,y2:height-bottom,className:"axis"}),
           h("line",{x1:left,x2:width-right,y1:height-bottom,y2:height-bottom,className:"axis"}),
+          fitPath&&h("path",{d:fitPath,className:"calibration-fit-line"}),
           ...selectedRows.map((point,index)=>h("circle",{
             key:point.row.id+"-"+index,cx:px(point.x),cy:py(point.y),r:6,
             className:"calibration-dot"+(String(point.row.qc).toUpperCase()==="OK"?"":" qc-alert")
@@ -79,33 +90,39 @@ export function makeUi(React, JSX) {
           h("text",{x:(left+width-right)/2,y:height-7,textAnchor:"middle",className:"axis-label"},
             text(locale,"已知浓度","Known concentration")+(selectedUnit?` (${selectedUnit})`:"")),
           h("text",{x:left+8,y:16,className:"axis-label"},text(locale,"采集信号","Signal"))),
-        h("p",{},selectedRows.length+text(locale," 个浓度–信号点。请确认这些记录是标准品后再进行拟合。"," concentration–signal pairs. Confirm they are standards before fitting.")));
+        fit&&h("div",{className:"fit-summary"},fit.model==="4PL"?
+          `4PL · Bottom ${data.formatNumber(fit.bottom)} · Top ${data.formatNumber(fit.top)} · EC50 ${data.formatNumber(fit.ec50)} · Hill ${data.formatNumber(fit.hill)}`:
+          text(locale,"线性拟合","Linear fit")+` · y = ${data.formatNumber(fit.slope)}x + ${data.formatNumber(fit.intercept)}`),
+        h("p",{},selectedRows.length+text(locale," 个浓度–信号点已完成自动分析。"," concentration–signal pairs analyzed.")),
+        fit&&fit.r2<.9&&h("p",{className:"analysis-warning"},text(locale,
+          `拟合度较低（R² ${fit.r2.toFixed(3)}），数据离散较大或当前模型不适合。`,
+          `Low fit quality (R² ${fit.r2.toFixed(3)}); the data are dispersed or the model is unsuitable.`)),
+        fit&&virtualReason&&h("p",{className:"analysis-warning"},text(locale,
+          `这些数据可能是模拟或测试数据：${virtualReason}。分析结果仅供流程检查。`,
+          `These may be simulated or test data because ${virtualReason}. Use the analysis for workflow checks only.`)));
     })():null;
     return h("section",{className:"panel calibration-state"},
       h("div",{className:"calibration-heading"},
         h("div",{},
-          h("h2",{},text(locale,"导入标准品数据","Import calibration standards")),
+          h("h2",{},text(locale,"数据拟合分析","Data fitting analysis")),
           h("p",{},text(locale,
-            "每种分析物需要单独的一组已知浓度与采集信号，建议至少 6 个浓度点。",
-            "Each analyte needs its own known-concentration and signal pairs; at least 6 concentration levels are recommended.")))),
+            "系统会按分析物分别读取 value 与 signal，并自动选择线性或 4PL 模型进行拟合。",
+            "The system reads value and signal for each analyte and automatically fits a linear or 4PL model.")))),
       h("button",{type:"button",className:"import-button calibration-import",onClick:onImport},
-        text(locale,"选择标定文件","Choose calibration file")),
+        text(locale,"导入数据并分析","Import and analyze")),
       h("p",{className:"calibration-format"},text(locale,
-        "文件字段：analyte、value、unit、signal；value 必须是标准品的已知浓度。",
-        "Required fields: analyte, value, unit and signal. Value must be the known standard concentration.")),
-      h("div",{className:"calibration-progress","aria-label":text(locale,"候选标定点数量","Candidate calibration pairs")},
+        "分析字段：analyte、value、unit、signal；同一分析物至少需要 2 个不同的 value。",
+        "Analysis fields: analyte, value, unit and signal. Each analyte needs at least 2 distinct values.")),
+      h("div",{className:"calibration-progress","aria-label":text(locale,"分析数据点数量","Analysis data points")},
         ...analytes.map(analyte=>{
-          const count=countPairs(analyte),ready=count>=6;
+          const count=countPairs(analyte),ready=count>=2;
           return h("button",{type:"button",className:"calibration-analyte"+(selected===analyte?" selected":""),key:analyte,onClick:()=>setSelected(analyte)},
             h("strong",{},analyte),
             h("span",{className:ready?"ready":"pending"},
-              count+text(locale," 个候选点"," candidate pairs")),
-            h("small",{},ready?text(locale,"数量已达到建议值","Recommended count reached"):
-              text(locale,"建议至少 6 个","At least 6 recommended")));
+              count+text(locale," 个数据点"," data points")),
+            h("small",{},ready?text(locale,"可进行拟合分析","Ready for fitting"):
+              text(locale,"至少需要 2 个","At least 2 required")));
         })),
-      totalPairs>0 && h("p",{className:"calibration-warning"},text(locale,
-        "这些记录仅是候选点。请确认它们来自已知浓度的标准品；普通样本不能用于建立标定曲线。",
-        "These are candidate pairs only. Confirm that they come from known-concentration standards; ordinary samples cannot establish calibration.")),
       plot||totalPairs>0&&h("div",{className:"candidate-plot-empty"},text(locale,
         "所选分析物至少需要 2 个浓度–信号点才能绘图。",
         "The selected analyte needs at least 2 concentration–signal pairs to plot.")));
