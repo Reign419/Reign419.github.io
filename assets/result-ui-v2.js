@@ -47,7 +47,6 @@ export function makeUi(React, JSX) {
     const totalPairs=analytes.reduce((sum,analyte)=>sum+countPairs(analyte),0);
     return h("section",{className:"panel calibration-state"},
       h("div",{className:"calibration-heading"},
-        h("span",{className:"calibration-step"},"1"),
         h("div",{},
           h("h2",{},text(locale,"导入标准品数据","Import calibration standards")),
           h("p",{},text(locale,
@@ -73,7 +72,7 @@ export function makeUi(React, JSX) {
         "These are candidate pairs only. Confirm that they come from known-concentration standards; ordinary samples cannot establish calibration.")));
   }
   function Notes({locale}) {
-    return h("details",{className:"panel result-notes"},
+    return h("details",{className:"panel result-notes",open:true},
       h("summary",{},text(locale,"数据与采集说明","Data and acquisition notes")),
       h("p",{},text(locale,
         "PMT / 光学检测器及前端电路先将光转换为电信号，ADS1256 将电信号数字化，ESP32 传输采集数值与已有浓度。signal 的单位取决于原固件定义。",
@@ -86,7 +85,7 @@ export function makeUi(React, JSX) {
         "The BLE panel keeps the latest 100 browser records. Newly received results also enter the current dashboard and statistics. Instrument Wi-Fi caches the latest 96 results in volatile memory; transfer them here through CSV. Data is processed in this browser.")));
   }
   function Export({records, locale}) {
-    return h("button",{type:"button",className:"import-button",disabled:!records.length,onClick:()=>{
+    return h("button",{type:"button",className:"import-button result-export",disabled:!records.length,onClick:()=>{
       const url=URL.createObjectURL(new Blob([data.toCsv(records)],{type:"text/csv;charset=utf-8"}));
       const link=document.createElement("a");link.href=url;link.download="PlantSOS-results.csv";link.click();
       setTimeout(()=>URL.revokeObjectURL(url),1000);

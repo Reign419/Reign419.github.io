@@ -9,8 +9,8 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();ins
 window.addEventListener('appinstalled',()=>{installPrompt=null;if(document.body)showToast(p('alreadyInstalled'))});
 
 const phaseCopy={
-  zh:{device:"设备",settings:"设置",dataSource:"数据来源",install:"安装",chooseSource:"选择数据来源",close:"关闭",connectTitle:"连接仪器",connectDesc:"通过 BLE 或 Wi-Fi 接收 PlantSOS 实时测量数据",importTitle:"导入文件",importDesc:"读取 XLSX、XLS、CSV、TSV 或 JSON 文件",demoTitle:"演示实验",demoDesc:"恢复内置示例实验数据",installTitle:"添加到主屏幕",iosInstall:"在 Safari 中点击“分享”，然后选择“添加到主屏幕”。",otherInstall:"打开浏览器菜单，然后选择“安装应用”或“添加到主屏幕”。",alreadyInstalled:"PlantSOS 已经安装在主屏幕。",installUnavailable:"浏览器尚未提供自动安装，请使用浏览器菜单添加到主屏幕。",settingsTitle:"应用设置",language:"语言",languageDesc:"选择界面显示语言",localData:"本地数据",localDataDesc:"检测文件和连接记录仅保存在当前设备",demoLoaded:"已恢复演示实验"},
-  en:{device:"Device",settings:"Settings",dataSource:"Data source",install:"Install",chooseSource:"Choose data source",close:"Close",connectTitle:"Connect instrument",connectDesc:"Receive live PlantSOS measurements over BLE or Wi-Fi",importTitle:"Import file",importDesc:"Open an XLSX, XLS, CSV, TSV, or JSON file",demoTitle:"Demo experiment",demoDesc:"Restore the built-in example experiment",installTitle:"Add to Home Screen",iosInstall:"In Safari, tap Share, then select Add to Home Screen.",otherInstall:"Open the browser menu, then choose Install app or Add to Home Screen.",alreadyInstalled:"PlantSOS is already installed on this device.",installUnavailable:"Automatic installation is not available yet. Use the browser menu to add this app to your home screen.",settingsTitle:"App settings",language:"Language",languageDesc:"Choose the interface language",localData:"Local data",localDataDesc:"Measurement files and connection history stay on this device",demoLoaded:"Demo experiment restored"}
+  zh:{device:"设备",settings:"设置",dataSource:"导入数据",install:"安装",chooseSource:"导入数据",close:"关闭",connectTitle:"连接仪器",connectDesc:"通过 BLE 或 Wi-Fi 接收 PlantSOS 实时测量数据",importTitle:"导入文件",importDesc:"读取 XLSX、XLS、CSV、TSV 或 JSON 文件",demoTitle:"演示实验",demoDesc:"恢复内置示例实验数据",installTitle:"添加到主屏幕",iosInstall:"在 Safari 中点击“分享”，然后选择“添加到主屏幕”。",otherInstall:"打开浏览器菜单，然后选择“安装应用”或“添加到主屏幕”。",alreadyInstalled:"PlantSOS 已经安装在主屏幕。",installUnavailable:"浏览器尚未提供自动安装，请使用浏览器菜单添加到主屏幕。",settingsTitle:"应用设置",language:"语言",languageDesc:"选择界面显示语言",localData:"本地数据",localDataDesc:"检测文件和连接记录仅保存在当前设备",demoLoaded:"已恢复演示实验"},
+  en:{device:"Device",settings:"Settings",dataSource:"Import data",install:"Install",chooseSource:"Import data",close:"Close",connectTitle:"Connect instrument",connectDesc:"Receive live PlantSOS measurements over BLE or Wi-Fi",importTitle:"Import file",importDesc:"Open an XLSX, XLS, CSV, TSV, or JSON file",demoTitle:"Demo experiment",demoDesc:"Restore the built-in example experiment",installTitle:"Add to Home Screen",iosInstall:"In Safari, tap Share, then select Add to Home Screen.",otherInstall:"Open the browser menu, then choose Install app or Add to Home Screen.",alreadyInstalled:"PlantSOS is already installed on this device.",installUnavailable:"Automatic installation is not available yet. Use the browser menu to add this app to your home screen.",settingsTitle:"App settings",language:"Language",languageDesc:"Choose the interface language",localData:"Local data",localDataDesc:"Measurement files and connection history stay on this device",demoLoaded:"Demo experiment restored"}
 };
 
 function phaseLanguage(){const active=[...document.querySelectorAll('.language-switch button')].find(button=>button.classList.contains('active'));return active?.textContent.trim()==='中文'?'zh':'en'}
@@ -26,10 +26,8 @@ function setInitialLanguage(){
 
 function ensureNavigation(){
   const sideNav=document.querySelector('.side-rail nav');
-  if(sideNav&&!sideNav.querySelector('[data-phase-device]')){const device=makeButton('device','◉');sideNav.insertBefore(device,sideNav.children[1]||null)}
   if(sideNav&&!sideNav.querySelector('[data-phase-settings]')){const settings=makeButton('settings','⚙');sideNav.append(settings)}
   const bottomNav=document.querySelector('.bottom-nav');
-  if(bottomNav&&!bottomNav.querySelector('[data-phase-device]')){const device=makeButton('device','◉');bottomNav.insertBefore(device,bottomNav.children[1]||null)}
   const installButton=bottomNav?.lastElementChild;if(installButton)installButton.dataset.phaseInstall='true';
 }
 
@@ -51,16 +49,16 @@ async function installApp(){if(isStandalone()){showToast(p('alreadyInstalled'));
 function showToast(message){document.querySelector('.phase-toast')?.remove();const toast=document.createElement('div');toast.className='phase-toast';toast.textContent=message;document.body.append(toast);setTimeout(()=>toast.remove(),2600)}
 
 function refreshPhaseUi(){
-  ensureNavigation();document.querySelectorAll('[data-phase-device] span').forEach(span=>setText(span,p('device')));document.querySelectorAll('[data-phase-settings] span').forEach(span=>setText(span,p('settings')));document.querySelectorAll('[data-phase-install] span').forEach(span=>setText(span,p('install')));setText(document.querySelector('.import-button'),p('dataSource'));
+  ensureNavigation();document.querySelectorAll('[data-phase-settings] span').forEach(span=>setText(span,p('settings')));document.querySelectorAll('[data-phase-install] span').forEach(span=>setText(span,p('install')));setText(document.querySelector('.run-strip .import-button'),p('dataSource'));
   if(sourceModal){setText(sourceModal.querySelector('h2'),p('chooseSource'));sourceModal.querySelector('.phase-modal-close').setAttribute('aria-label',p('close'));const options=sourceModal.querySelectorAll('.phase-source-option');[["connectTitle","connectDesc"],["importTitle","importDesc"],["demoTitle","demoDesc"]].forEach((keys,index)=>{setText(options[index].querySelector('strong'),p(keys[0]));setText(options[index].querySelector('small'),p(keys[1]))})}
   if(installModal){setText(installModal.querySelector('h2'),p('installTitle'));installModal.querySelector('.phase-modal-close').setAttribute('aria-label',p('close'))}
   if(settingsModal){setText(settingsModal.querySelector('h2'),p('settingsTitle'));setText(settingsModal.querySelector('[data-setting-language]'),p('language'));setText(settingsModal.querySelector('[data-setting-language-desc]'),p('languageDesc'));setText(settingsModal.querySelector('[data-setting-local]'),p('localData'));setText(settingsModal.querySelector('[data-setting-local-desc]'),p('localDataDesc'))}
 }
 
 function queueRefresh(){if(refreshQueued)return;refreshQueued=true;requestAnimationFrame(()=>{refreshQueued=false;ensureNavigation();refreshPhaseUi()})}
-function handlePhaseClick(event){const target=event.target.closest('button');if(!target)return;if(target.matches('.import-button,.scan-action')){event.preventDefault();event.stopImmediatePropagation();openSourceModal();return}if(target.matches('[data-phase-device]')){event.preventDefault();event.stopImmediatePropagation();openDevicePanel();return}if(target.matches('[data-phase-settings]')){event.preventDefault();event.stopImmediatePropagation();openSettings();return}if(target.matches('[data-phase-install]')){event.preventDefault();event.stopImmediatePropagation();installApp()}}
+function handlePhaseClick(event){const target=event.target.closest('button');if(!target)return;if(target.matches('[data-phase-settings]')){event.preventDefault();event.stopImmediatePropagation();openSettings();return}if(target.matches('[data-phase-install]')){event.preventDefault();event.stopImmediatePropagation();installApp()}}
 
-function initializePhaseOne(){setInitialLanguage();ensureNavigation();ensureSourceModal();ensureInstallModal();ensureSettingsModal();refreshPhaseUi();document.addEventListener('click',handlePhaseClick,true);new MutationObserver(queueRefresh).observe(document.querySelector('.app-shell')||document.body,{childList:true,subtree:true})}
+function initializePhaseOne(){setInitialLanguage();ensureNavigation();ensureInstallModal();ensureSettingsModal();refreshPhaseUi();document.addEventListener('click',handlePhaseClick,true);new MutationObserver(queueRefresh).observe(document.querySelector('.app-shell')||document.body,{childList:true,subtree:true})}
 
 document.readyState==='complete'?setTimeout(initializePhaseOne,350):window.addEventListener('load',()=>setTimeout(initializePhaseOne,350),{once:true});
 

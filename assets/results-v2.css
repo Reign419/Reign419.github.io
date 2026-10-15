@@ -11,7 +11,6 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 .calibration-heading {display:flex;align-items:flex-start;gap:14px}
 .calibration-heading h2 {margin:0;font-size:1.35rem}
 .calibration-heading p {margin:7px 0 0}
-.calibration-step {display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:#ffeb74;border:2px solid #2f673d;font-weight:800;color:#244d30}
 .calibration-import {margin:18px 0 8px}
 .calibration-format {font-size:.9rem}
 .calibration-progress {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:24px}
@@ -30,6 +29,8 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 .concentration-copy strong {overflow-wrap:anywhere}
 .bottom-nav {z-index:20}
 .import-button:disabled {opacity:.5;cursor:default}
+.result-export {display:block;margin:22px 0 16px}
+.result-notes {margin-top:0}
 @media (max-width:650px){
   .overview-select {gap:12px}
   .result-notes,.calibration-state {padding:16px}
