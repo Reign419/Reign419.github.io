@@ -15,18 +15,37 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 .calibration-format {font-size:.9rem}
 .calibration-progress {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:24px}
 .calibration-analyte {display:flex;flex-direction:column;gap:5px;padding:16px;border:2px solid #b5c9a1;border-radius:18px;background:#fbfcf4}
+.calibration-analyte {color:inherit;text-align:left;cursor:pointer}
+.calibration-analyte.selected {border-color:#3c7044;background:#f1f9ce;box-shadow:3px 4px #d9d5f1}
 .calibration-analyte strong {font-size:1.05rem}
 .calibration-analyte span {font-weight:750}
 .calibration-analyte .ready {color:#26733a}
 .calibration-analyte .pending {color:#8a6224}
 .calibration-analyte small {color:#5d715f}
 .calibration-warning {margin-top:20px!important;padding:12px 14px;border-radius:12px;background:#fff8dc;color:#72531f!important}
+.candidate-calibration-plot {margin-top:20px;padding:20px;border:2px solid #b5c9a1;border-radius:20px;background:#fffef8}
+.candidate-plot-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.candidate-plot-heading h3 {margin:0;font-size:1.05rem}
+.candidate-plot-heading span {color:#7a6231;font-size:.8rem;font-weight:750}
+.candidate-calibration-plot p {margin:8px 0 0;font-size:.86rem}
+.calibration-dot {fill:#fff07b;stroke:#356b3d;stroke-width:3px}
+.calibration-dot.qc-alert {fill:#f39a83;stroke:#a83e32}
+.candidate-plot-empty {margin-top:20px;padding:30px;text-align:center;color:#6f786f;border:2px dashed #b5c9a1;border-radius:18px}
 .sample-signal-plot>p {font-size:.9rem;font-weight:700;margin:0 0 6px}
 .sample-signal-plot>small {font-size:.8rem;display:block;margin-top:4px}
 .result-plot-empty {min-height:170px;display:flex;flex-direction:column;justify-content:center;padding:20px}
 .hero-copy .big-number {flex-wrap:wrap}
 .qc-badge {white-space:normal;text-align:center}
 .concentration-copy strong {overflow-wrap:anywhere}
+.result-row.qc-alert {margin:2px 0;padding-inline:10px;border-left:4px solid #c55245;border-radius:12px;background:#fff0ea}
+.result-row.qc-alert .qc-badge {color:#922f27;background:#ffd9d1;border:1px solid #d66b5f}
+@media (min-width:761px){
+  .records-panel .result-row {grid-template-columns:40px minmax(220px,420px) minmax(130px,180px) minmax(150px,200px) minmax(100px,130px);justify-content:start;column-gap:24px}
+  .records-panel .signal-copy span {font-size:16px;font-weight:750}
+  .records-panel .concentration-copy strong {font-size:24px}
+  .records-panel .concentration-copy span {font-size:12px}
+  .records-panel .qc-badge {font-size:10px}
+}
 .bottom-nav {z-index:20}
 .import-button:disabled {opacity:.5;cursor:default}
 .result-export {display:block;margin:22px 0 16px}
@@ -35,6 +54,8 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
   .overview-select {gap:12px}
   .result-notes,.calibration-state {padding:16px}
   .calibration-progress {grid-template-columns:1fr}
+  .candidate-calibration-plot {padding:14px}
+  .candidate-plot-heading {align-items:flex-start;flex-direction:column}
   .hero-mini-chart {min-width:0}
   .concentration-copy strong {font-size:1.3rem}
   .calibration-state .import-button {white-space:normal}

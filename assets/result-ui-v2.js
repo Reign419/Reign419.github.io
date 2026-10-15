@@ -45,6 +45,42 @@ export function makeUi(React, JSX) {
       data.finiteNumber(row.concentration)!==null &&
       data.finiteNumber(row.signal)!==null).length;
     const totalPairs=analytes.reduce((sum,analyte)=>sum+countPairs(analyte),0);
+    const [selected,setSelected]=React.useState(analytes.find(analyte=>countPairs(analyte)>0)||"SA");
+    const selectedUnit=records.find(row=>data.normalizeAnalyte(row.analyte)===selected&&data.finiteNumber(row.concentration)!==null&&row.unit)?.unit||"";
+    const selectedRows=records.map(row=>({row,x:data.convertConcentration(row,selectedUnit),y:data.finiteNumber(row.signal)}))
+      .filter(point=>data.normalizeAnalyte(point.row.analyte)===selected&&point.x!==null&&point.y!==null)
+      .sort((a,b)=>a.x-b.x);
+    const plot=selectedRows.length>=2?(()=>{
+      const width=720,height=310,left=68,right=24,top=24,bottom=58;
+      const xs=selectedRows.map(point=>point.x),ys=selectedRows.map(point=>point.y);
+      const xMin=Math.min(...xs),xMax=Math.max(...xs),yMin=Math.min(...ys),yMax=Math.max(...ys);
+      const xPad=(xMax-xMin||1)*.08,yPad=(yMax-yMin||1)*.1;
+      const x0=xMin-xPad,x1=xMax+xPad,y0=yMin-yPad,y1=yMax+yPad;
+      const px=value=>left+(value-x0)/(x1-x0)*(width-left-right);
+      const py=value=>top+(y1-value)/(y1-y0)*(height-top-bottom);
+      const xTicks=Array.from({length:4},(_,index)=>x0+(x1-x0)*index/3);
+      const yTicks=Array.from({length:4},(_,index)=>y0+(y1-y0)*index/3);
+      return h("section",{className:"candidate-calibration-plot"},
+        h("div",{className:"candidate-plot-heading"},
+          h("h3",{},selected+text(locale," · 浓度–信号图"," · Concentration–signal plot")),
+          h("span",{},text(locale,"实际数据 · 未拟合","Actual data · Not fitted"))),
+        h("svg",{className:"curve-chart",viewBox:`0 0 ${width} ${height}`,role:"img",
+          "aria-label":text(locale,`${selected} 候选标定点散点图`,`${selected} candidate calibration scatter plot`)},
+          ...yTicks.map((tick,index)=>h("g",{key:"y-"+index},
+            h("line",{x1:left,x2:width-right,y1:py(tick),y2:py(tick),className:"gridline"}),
+            h("text",{x:left-10,y:py(tick)+4,textAnchor:"end"},data.formatNumber(tick)))),
+          ...xTicks.map((tick,index)=>h("text",{key:"x-"+index,x:px(tick),y:height-30,textAnchor:"middle"},data.formatNumber(tick))),
+          h("line",{x1:left,x2:left,y1:top,y2:height-bottom,className:"axis"}),
+          h("line",{x1:left,x2:width-right,y1:height-bottom,y2:height-bottom,className:"axis"}),
+          ...selectedRows.map((point,index)=>h("circle",{
+            key:point.row.id+"-"+index,cx:px(point.x),cy:py(point.y),r:6,
+            className:"calibration-dot"+(String(point.row.qc).toUpperCase()==="OK"?"":" qc-alert")
+          },h("title",{},`${point.row.sample||point.row.well} · ${data.formatNumber(point.x)} ${selectedUnit} · ${data.formatNumber(point.y)}`))),
+          h("text",{x:(left+width-right)/2,y:height-7,textAnchor:"middle",className:"axis-label"},
+            text(locale,"已知浓度","Known concentration")+(selectedUnit?` (${selectedUnit})`:"")),
+          h("text",{x:left+8,y:16,className:"axis-label"},text(locale,"采集信号","Signal"))),
+        h("p",{},selectedRows.length+text(locale," 个浓度–信号点。请确认这些记录是标准品后再进行拟合。"," concentration–signal pairs. Confirm they are standards before fitting.")));
+    })():null;
     return h("section",{className:"panel calibration-state"},
       h("div",{className:"calibration-heading"},
         h("div",{},
@@ -60,7 +96,7 @@ export function makeUi(React, JSX) {
       h("div",{className:"calibration-progress","aria-label":text(locale,"候选标定点数量","Candidate calibration pairs")},
         ...analytes.map(analyte=>{
           const count=countPairs(analyte),ready=count>=6;
-          return h("div",{className:"calibration-analyte",key:analyte},
+          return h("button",{type:"button",className:"calibration-analyte"+(selected===analyte?" selected":""),key:analyte,onClick:()=>setSelected(analyte)},
             h("strong",{},analyte),
             h("span",{className:ready?"ready":"pending"},
               count+text(locale," 个候选点"," candidate pairs")),
@@ -69,7 +105,10 @@ export function makeUi(React, JSX) {
         })),
       totalPairs>0 && h("p",{className:"calibration-warning"},text(locale,
         "这些记录仅是候选点。请确认它们来自已知浓度的标准品；普通样本不能用于建立标定曲线。",
-        "These are candidate pairs only. Confirm that they come from known-concentration standards; ordinary samples cannot establish calibration.")));
+        "These are candidate pairs only. Confirm that they come from known-concentration standards; ordinary samples cannot establish calibration.")),
+      plot||totalPairs>0&&h("div",{className:"candidate-plot-empty"},text(locale,
+        "所选分析物至少需要 2 个浓度–信号点才能绘图。",
+        "The selected analyte needs at least 2 concentration–signal pairs to plot.")));
   }
   function Notes({locale}) {
     return h("details",{className:"panel result-notes",open:true},

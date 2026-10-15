@@ -118,7 +118,16 @@ export function concentrationText(row, locale) {
 }
 export function qcText(row, locale) {
   if (row.concentration === null && String(row.qc).toUpperCase() === "OK") return locale === "zh" ? "OK · 待标定" : "OK · Uncalibrated";
-  const known = {OK: ["通过", "Pass"], NO_CAL: ["待标定", "Uncalibrated"], NOT_PROVIDED: ["未提供", "Not provided"]};
+  const known = {
+    OK: ["通过", "Pass"],
+    LOW: ["偏低", "Low"],
+    HIGH: ["偏高", "High"],
+    ABOVE_RANGE: ["超出范围", "Above range"],
+    BELOW_RANGE: ["低于范围", "Below range"],
+    SATURATED: ["信号饱和", "Saturated"],
+    NO_CAL: ["待标定", "Uncalibrated"],
+    NOT_PROVIDED: ["未提供", "Not provided"]
+  };
   return known[String(row.qc).toUpperCase()]?.[locale === "zh" ? 0 : 1] ?? row.qc;
 }
 export function toCsv(records) {
