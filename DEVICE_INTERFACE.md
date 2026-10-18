@@ -32,7 +32,7 @@ Version with sequence, signal, and analyte:
 JSON:
 
 ```json
-{"seq":42,"well":"A1","concentration":132.4,"unit":"uM","qc":"OK","signal":10516,"analyte":"SA"}
+{"seq":42,"well":"A1","value":132.4,"unit":"uM","qc":"OK","signal":10516,"analyte":"SA"}
 ```
 
-The `seq` value should increase for each measurement so duplicate BLE/Wi-Fi packets can be ignored.
+The `seq` value should increase for each measurement. The preferred payload also includes `run`, `plate`, `sample`, `date` or `recorded_at`, and `time_source` so records remain traceable. `concentration` is accepted only as a legacy alias for `value`.
