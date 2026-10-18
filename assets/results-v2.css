@@ -33,6 +33,24 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 .calibration-fit-line {fill:none;stroke:#356b3d;stroke-width:3px;stroke-linecap:round}
 .fit-summary {margin-top:10px;padding:10px 12px;border-radius:12px;background:#eef6d2;color:#315f39;font:700 .82rem/1.5 ui-monospace,monospace}
 .analysis-warning {margin-top:10px!important;padding:11px 13px;border-left:4px solid #d07a38;border-radius:10px;background:#fff1da;color:#7a491f!important}
+.history-panel {margin-top:22px;padding:24px}
+.history-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:12px}
+.history-heading h2 {margin:0;font-size:1.25rem}
+.history-heading p {margin:7px 0 0;color:#516c55;line-height:1.55}
+.history-sample {display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:.86rem;font-weight:700;color:#48634c}
+.history-sample select {min-width:140px;padding:9px 30px 9px 11px;border:1px solid #9db295;border-radius:10px;background:#fffef8;color:#264c2e}
+.history-chart {display:block;width:100%;max-height:330px;margin-top:8px}
+.history-line {fill:none;stroke:#3c7044;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.history-dot {fill:#fff07b;stroke:#356b3d;stroke-width:3}
+.history-empty {margin:18px 0;padding:32px;text-align:center;color:#68756a;border:2px dashed #b5c9a1;border-radius:16px}
+.advice-card {margin-top:14px;padding:16px 18px;border-left:5px solid #6f8e73;border-radius:12px;background:#f1f5ec}
+.advice-card strong {display:block;margin-bottom:5px;font-size:1rem}
+.advice-card p {margin:0 0 7px;line-height:1.6;color:#354d39}
+.advice-card small {color:#617066}
+.advice-card.alert {border-color:#b94a3c;background:#fff0ea}
+.advice-card.warn {border-color:#d38a2f;background:#fff6dd}
+.advice-card.ok {border-color:#4c8b55;background:#eff8e9}
+.advice-disclaimer {margin:10px 0 0;color:#69736b;font-size:.78rem;line-height:1.55}
 .candidate-plot-empty {margin-top:20px;padding:30px;text-align:center;color:#6f786f;border:2px dashed #b5c9a1;border-radius:18px}
 .sample-signal-plot>p {font-size:.9rem;font-weight:700;margin:0 0 6px}
 .sample-signal-plot>small {font-size:.8rem;display:block;margin-top:4px}
@@ -59,6 +77,10 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
   .calibration-progress {grid-template-columns:1fr}
   .candidate-calibration-plot {padding:14px}
   .candidate-plot-heading {align-items:flex-start;flex-direction:column}
+  .history-panel {padding:16px}
+  .history-heading {flex-direction:column}
+  .history-sample {width:100%}
+  .history-sample select {min-width:0;flex:1}
   .hero-mini-chart {min-width:0}
   .concentration-copy strong {font-size:1.3rem}
   .calibration-state .import-button {white-space:normal}

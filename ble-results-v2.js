@@ -91,7 +91,7 @@ function syncDashboard(result){
   window.dispatchEvent(new CustomEvent('plantsos:result',{detail:{...result,analyte:result.hormone}}));
 }
 
-function exportCsv(){if(!state.history.length){alert(t('noData'));return}const rows=state.history.map((item,index)=>PSData.normalizeResult({...item,analyte:item.hormone},index,item.source)).filter(Boolean),blob=new Blob([PSData.toCsv(rows)],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='PlantSOS-BLE-results.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function exportCsv(){if(!state.history.length){alert(t('noData'));return}const rows=state.history.map((item,index)=>PSData.normalizeResult({...item,analyte:item.hormone},index,item.source)).filter(Boolean),blob=new Blob([PSData.toCsv(rows)],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`PlantSOS-BLE-results-${new Date().toISOString().slice(0,10)}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function clearHistory(){state.history=[];saveHistory();renderHistory();ui.latestLabel.textContent=t('waiting');ui.latestValue.textContent='--';ui.latestUnit.textContent='µM';ui.latestWell.textContent='';ui.latestSignal.textContent='';ui.latestQc.textContent='--'}
 function observeLanguageChanges(){const languageSwitch=document.querySelector('.language-switch');if(languageSwitch)new MutationObserver(updateLanguage).observe(languageSwitch,{attributes:true,subtree:true,attributeFilter:['class','aria-pressed']})}
 function initializeBleUi(){window.setTimeout(()=>{if(document.querySelector('.ble-fab'))return;buildUi();observeLanguageChanges()},250)}

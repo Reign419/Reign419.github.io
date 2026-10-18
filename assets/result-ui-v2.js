@@ -127,6 +127,39 @@ export function makeUi(React, JSX) {
         "所选分析物至少需要 2 个浓度–信号点才能绘图。",
         "The selected analyte needs at least 2 concentration–signal pairs to plot.")));
   }
+  function HistoryTrend({records, locale, analyte}) {
+    const samples=[...new Set(records.filter(row=>data.normalizeAnalyte(row.analyte)===data.normalizeAnalyte(analyte)).map(row=>row.sample).filter(Boolean))];
+    const [sample,setSample]=React.useState("all");
+    React.useEffect(()=>{if(sample!=="all"&&!samples.includes(sample))setSample("all")},[analyte,records.length]);
+    const series=data.trendSeries(records,analyte,sample),points=series.points;
+    const advice=data.nextStepAdvice(records,analyte,sample,locale);
+    const width=760,height=300,left=66,right=28,top=28,bottom=58;
+    let chart=null;
+    if(points.length){
+      const times=points.map(point=>new Date(point.timestamp).getTime()),values=points.map(point=>point.value);
+      const t0=Math.min(...times),t1=Math.max(...times),v0=Math.min(...values),v1=Math.max(...values);
+      const x=(time,index)=>left+(t1===t0?(points.length===1?.5:index/Math.max(1,points.length-1)):(time-t0)/(t1-t0))*(width-left-right);
+      const pad=(v1-v0||Math.max(Math.abs(v1),1))*.12,y0=Math.max(0,v0-pad),y1=v1+pad;
+      const y=value=>top+(y1-value)/(y1-y0||1)*(height-top-bottom);
+      const line=points.map((point,index)=>`${index?"L":"M"}${x(times[index],index).toFixed(2)},${y(point.value).toFixed(2)}`).join(" ");
+      const ticks=[y0,(y0+y1)/2,y1];
+      chart=h("svg",{className:"history-chart",viewBox:`0 0 ${width} ${height}`,role:"img","aria-label":text(locale,`${analyte} 历史趋势`,`${analyte} historical trend`)},
+        ...ticks.map((tick,index)=>h("g",{key:"h-y-"+index},h("line",{x1:left,x2:width-right,y1:y(tick),y2:y(tick),className:"gridline"}),h("text",{x:left-9,y:y(tick)+4,textAnchor:"end"},data.formatNumber(tick)))),
+        h("line",{x1:left,x2:left,y1:top,y2:height-bottom,className:"axis"}),h("line",{x1:left,x2:width-right,y1:height-bottom,y2:height-bottom,className:"axis"}),
+        points.length>1&&h("path",{d:line,className:"history-line"}),
+        ...points.map((point,index)=>h("g",{key:point.timestamp+"-"+index},
+          h("circle",{cx:x(times[index],index),cy:y(point.value),r:6,className:"history-dot"},h("title",{},`${data.recordDate(point.row)} · ${data.formatNumber(point.value)} ${series.unit}`)),
+          (points.length<=8||index===0||index===points.length-1)&&h("text",{x:x(times[index],index),y:height-28,textAnchor:"middle"},data.recordDate(point.row).slice(5)))));
+    }
+    return h("section",{className:"panel history-panel"},
+      h("div",{className:"history-heading"},h("div",{},h("h2",{},text(locale,"历史趋势与下一步建议","History trend and next step")),
+        h("p",{},text(locale,"按记录日期分析；“全部样本”显示该激素每天的平均浓度。","Analysed by record date; All samples shows the daily mean for this analyte."))),
+        samples.length>0&&h("label",{className:"history-sample"},h("span",{},text(locale,"样本","Sample")),h("select",{value:sample,onChange:event=>setSample(event.target.value)},
+          h("option",{value:"all"},text(locale,"全部样本","All samples")),...samples.map(name=>h("option",{value:name,key:name},name))))),
+      points.length?chart:h("div",{className:"history-empty"},text(locale,"导入至少一条带日期的有效浓度记录后显示趋势。","Import at least one dated concentration result to display a trend.")),
+      h("div",{className:`advice-card ${advice.level}`},h("strong",{},advice.title),h("p",{},advice.text),h("small",{},advice.basis)),
+      h("p",{className:"advice-disclaimer"},text(locale,"此建议来自透明的 QC 与相对变化规则，不是经验证的植物学诊断；处理植物前请结合实验设计和专业判断。","This suggestion uses transparent QC and relative-change rules. It is not a validated plant diagnosis; consider the experimental design and expert judgement before acting.")));
+  }
   function Notes({locale}) {
     return h("details",{className:"panel result-notes",open:true},
       h("summary",{},text(locale,"数据与采集说明","Data and acquisition notes")),
@@ -137,15 +170,15 @@ export function makeUi(React, JSX) {
         "value 为设备或文件提供的浓度，unit 为浓度单位，qc 保留来源值；网站未重新验证设备标定。原始 signal 不会用演示曲线换算。相同激素的兼容浓度单位会统一后统计，单位缺失或不兼容的记录不纳入平均值。",
         "Value is a provided concentration; unit is its concentration unit. QC is preserved from the source; calibration has not been revalidated by this website. Raw signals are never converted using the demo curve. Compatible units are converted within one analyte; missing or incompatible units are excluded from its average.")),
       h("p",{},text(locale,
-        "BLE 面板保留最近 100 条浏览器记录，新接收的结果同时进入本次主界面记录与统计。仪器 Wi-Fi 缓存为最近 96 条，断电清空；通过 CSV 导入本网站。数据仅在当前浏览器处理。",
-        "The BLE panel keeps the latest 100 browser records. Newly received results also enter the current dashboard and statistics. Instrument Wi-Fi caches the latest 96 results in volatile memory; transfer them here through CSV. Data is processed in this browser.")));
+        "BLE 面板保留最近 100 条浏览器记录，新接收或新导入的结果会去重后追加到当前历史。CSV 包含年月日和完整时间戳；原数据缺少有效日期时使用导入时间并标记。仪器 Wi-Fi 缓存为最近 96 条，断电清空；通过 CSV 导入本网站。数据仅在当前浏览器处理。",
+        "The BLE panel keeps the latest 100 browser records. Newly received or imported results are deduplicated and appended to local history. CSV exports include a date and full timestamp; when the source has no valid date, import time is used and marked. Instrument Wi-Fi caches the latest 96 results in volatile memory; transfer them here through CSV. Data is processed in this browser.")));
   }
   function Export({records, locale}) {
     return h("button",{type:"button",className:"import-button result-export",disabled:!records.length,onClick:()=>{
       const url=URL.createObjectURL(new Blob([data.toCsv(records)],{type:"text/csv;charset=utf-8"}));
-      const link=document.createElement("a");link.href=url;link.download="PlantSOS-results.csv";link.click();
+      const link=document.createElement("a");link.href=url;link.download=`PlantSOS-results-${new Date().toISOString().slice(0,10)}.csv`;link.click();
       setTimeout(()=>URL.revokeObjectURL(url),1000);
     }},text(locale,"导出本次结果 CSV","Export current results"));
   }
-  return {Filters, Plot, Calibration, Notes, Export};
+  return {Filters, Plot, Calibration, HistoryTrend, Notes, Export};
 }

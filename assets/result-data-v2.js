@@ -43,6 +43,29 @@ export function normalizeWell(value) {
   const match = text.match(/^([A-H])0?([1-9]|1[0-2])$/);
   return match ? match[1] + String(Number(match[2])).padStart(2, "0") : text;
 }
+function localDateString(date) {
+  const pad = value => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+export function normalizeTimestamp(value) {
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value > 1e12) return new Date(value).toISOString();
+    if (value > 1e9) return new Date(value * 1000).toISOString();
+    if (value > 20000 && value < 80000) return new Date(Date.UTC(1899, 11, 30) + value * 86400000).toISOString();
+  }
+  const text = String(value ?? "").trim();
+  if (!text || /^\d+(?:\.\d+)?\s*(?:h|hr|hours?|min|minutes?|d|days?)$/i.test(text)) return "";
+  if (/^\d+(?:\.\d+)?$/.test(text)) return normalizeTimestamp(Number(text));
+  if (!/(?:19|20)\d{2}/.test(text)) return "";
+  const normalized = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(text) ? text.replaceAll("/", "-") + "T00:00:00" : text;
+  const parsed = new Date(normalized);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : "";
+}
+export function recordDate(row) {
+  const timestamp = normalizeTimestamp(row?.recordedAt ?? row?.timestamp ?? row?.ts ?? row?.date);
+  return timestamp ? localDateString(new Date(timestamp)) : "";
+}
 export function normalizeResult(input, index = 0, source = "file") {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const map = fields(input);
@@ -56,7 +79,18 @@ export function normalizeResult(input, index = 0, source = "file") {
   const run = String(pick(map, ["run", "实验", "批次"]) ?? "");
   const plate = String(pick(map, ["plate", "孔板"]) ?? "");
   const well = normalizeWell(pick(map, ["well", "position", "孔位"]) ?? "");
-  const time = String(pick(map, ["ts", "timepoint", "time", "时间", "receivedAt"]) ?? "");
+  const rawDate = pick(map, ["date", "measurementdate", "测量日期", "日期"]);
+  const rawClock = pick(map, ["clock", "clocktime", "测量时间"]);
+  const rawTime = pick(map, ["time", "时间"]);
+  const rawTimestamp = pick(map, ["recorded_at", "recordedat", "timestamp", "datetime", "date_time", "ts", "receivedAt"])
+    ?? (rawDate ? `${rawDate}${rawClock ? "T" + rawClock : ""}` : rawTime);
+  const parsedTimestamp = normalizeTimestamp(rawTimestamp);
+  const recordedAt = parsedTimestamp || new Date().toISOString();
+  const declaredTimeSource = String(pick(map, ["time_source", "timesource"]) ?? "").toLowerCase();
+  const timeSource = declaredTimeSource === "imported" || declaredTimeSource === "provided"
+    ? declaredTimeSource : parsedTimestamp ? "provided" : "imported";
+  const timepointValue = pick(map, ["timepoint", "elapsed", "elapsedtime", "elapsed_time", "时间点"]);
+  const timepoint = String(timepointValue ?? (!normalizeTimestamp(rawTime) && !rawDate ? rawTime ?? "" : ""));
   return {
     id: String(pick(map, ["id"]) ?? (sequence !== "" ? [run, plate, sequence].join(":") : "row-" + index)),
     sequence, run, plate, well,
@@ -65,9 +99,28 @@ export function normalizeResult(input, index = 0, source = "file") {
     signal, concentration,
     unit: normalizeUnit(pick(map, ["unit", "conc_unit", "units", "单位"])),
     qc: String(pick(map, ["qc", "status", "质控"]) ?? (concentration === null ? "NO_CAL" : "NOT_PROVIDED")),
-    time, source: String(pick(map, ["source"]) ?? source),
+    time: timepoint || recordedAt, timepoint, recordedAt, date: localDateString(new Date(recordedAt)), timeSource,
+    source: String(pick(map, ["source"]) ?? source),
     concentrationSource: concentration === null ? "unavailable" : "provided"
   };
+}
+export function recordKey(row) {
+  const sequence = String(row?.sequence ?? "");
+  const identity = [row?.run, row?.plate, sequence, row?.well, normalizeAnalyte(row?.analyte), row?.sample].map(value=>String(value??"")).join("|");
+  const measurement = [finiteNumber(row?.concentration), normalizeUnit(row?.unit), finiteNumber(row?.signal), String(row?.qc??"").toUpperCase()].join("|");
+  const time = row?.timeSource === "provided" ? normalizeTimestamp(row?.recordedAt) : String(row?.timepoint ?? "");
+  return [identity, measurement, time].join("|");
+}
+export function mergeRecords(existing, incoming, limit = 2000) {
+  const output = [], seen = new Set();
+  for (const row of [...(existing || []), ...(incoming || [])]) {
+    const normalized = row?.concentrationSource ? row : normalizeResult(row, output.length, row?.source || "file");
+    if (!normalized) continue;
+    const key = recordKey(normalized);
+    if (seen.has(key)) continue;
+    seen.add(key); output.push(normalized);
+  }
+  return output.sort((a,b)=>normalizeTimestamp(a.recordedAt).localeCompare(normalizeTimestamp(b.recordedAt))).slice(-limit);
 }
 export function normalizeRows(rows, source = "file") {
   if (!Array.isArray(rows)) return [];
@@ -107,6 +160,54 @@ export function convertConcentration(row, unit) {
   const value = finiteNumber(row?.concentration), from = normalizeUnit(row?.unit), to = normalizeUnit(unit);
   if (value === null || !from || !to) return null;
   return from === to ? value : MOLAR[from] && MOLAR[to] ? value * MOLAR[from] / MOLAR[to] : null;
+}
+export function trendSeries(records, analyte, sample = "all") {
+  const matching = (records || []).filter(row => normalizeAnalyte(row.analyte) === normalizeAnalyte(analyte)
+    && (sample === "all" || row.sample === sample) && normalizeTimestamp(row.recordedAt));
+  const target = matching.find(row => finiteNumber(row.concentration) !== null && normalizeUnit(row.unit));
+  const unit = normalizeUnit(target?.unit);
+  const points = matching.map(row=>({row, timestamp:normalizeTimestamp(row.recordedAt), value:convertConcentration(row, unit)}))
+    .filter(point=>point.value!==null).sort((a,b)=>a.timestamp.localeCompare(b.timestamp));
+  if (sample !== "all") return {unit, points};
+  const daily = new Map();
+  for (const point of points) {
+    const date = recordDate(point.row), bucket = daily.get(date) || [];
+    bucket.push(point); daily.set(date,bucket);
+  }
+  return {unit, points:[...daily.entries()].map(([date,bucket])=>({
+    timestamp:bucket[bucket.length-1].timestamp,
+    value:bucket.reduce((sum,point)=>sum+point.value,0)/bucket.length,
+    row:{...bucket[bucket.length-1].row,date,sample:"all"}, count:bucket.length
+  })).sort((a,b)=>a.timestamp.localeCompare(b.timestamp))};
+}
+export function nextStepAdvice(records, analyte, sample = "all", locale = "zh") {
+  const rows = (records || []).filter(row=>normalizeAnalyte(row.analyte)===normalizeAnalyte(analyte)
+    && (sample==="all"||row.sample===sample));
+  const tr = (zh,en)=>locale==="zh"?zh:en;
+  const severe = rows.filter(row=>["HIGH","ABOVE_RANGE","SATURATED"].includes(String(row.qc).toUpperCase()));
+  const uncalibrated = rows.filter(row=>row.concentration===null||String(row.qc).toUpperCase()==="NO_CAL");
+  if (severe.length) return {level:"alert", title:tr("优先复核异常结果","Review abnormal results first"),
+    text:tr(`发现 ${severe.length} 条偏高、超范围或饱和记录。建议检查空白和标定状态，必要时稀释样本并重复测量。`,
+      `${severe.length} high, above-range, or saturated result(s) were found. Check blanks and calibration; dilute and repeat the sample when appropriate.`), basis:tr("依据：来源 QC 状态","Basis: source QC status")};
+  if (uncalibrated.length) return {level:"warn", title:tr("先完成标定再判断变化","Calibrate before interpreting change"),
+    text:tr(`有 ${uncalibrated.length} 条记录只有 signal、没有有效浓度。请用对应激素的已知标准品完成标定后重新分析。`,
+      `${uncalibrated.length} result(s) contain signal without a valid concentration. Calibrate with known standards for this analyte, then analyse again.`), basis:tr("依据：缺少有效浓度","Basis: valid concentration missing")};
+  const series = trendSeries(rows, analyte, sample);
+  if (series.points.length < 2) return {level:"info", title:tr("继续采集时间点","Collect another time point"),
+    text:tr("目前不足两个带日期的有效浓度点，尚不能判断趋势。建议在相同取样条件下增加下一次测量。",
+      "Fewer than two dated concentration points are available. Add another measurement under the same sampling conditions before interpreting a trend."), basis:tr("依据：有效时间点少于 2 个","Basis: fewer than 2 valid time points")};
+  const previous=series.points.at(-2), latest=series.points.at(-1);
+  const change=previous.value===0?null:(latest.value-previous.value)/Math.abs(previous.value)*100;
+  if (change===null) return {level:"info",title:tr("继续监测","Continue monitoring"),text:tr("上一时间点为零，无法计算可靠的相对变化；建议补充一次重复测量。","The previous value was zero, so a reliable relative change cannot be calculated. Add a repeat measurement."),basis:tr("依据：最近两个有效时间点","Basis: latest two valid time points")};
+  if (change>=20) return {level:"warn",title:tr("浓度呈上升趋势","Concentration is trending upward"),
+    text:tr(`最近一次较前一次升高 ${Math.abs(change).toFixed(1)}%。建议先复测确认，并结合植株症状、取样位置和环境条件判断。`,
+      `The latest value is ${Math.abs(change).toFixed(1)}% higher than the previous value. Repeat the measurement, then review plant symptoms, sampling position and environmental conditions.`),basis:tr("规则：相邻时间点上升 ≥20%","Rule: ≥20% increase between adjacent time points")};
+  if (change<=-20) return {level:"info",title:tr("浓度呈下降趋势","Concentration is trending downward"),
+    text:tr(`最近一次较前一次降低 ${Math.abs(change).toFixed(1)}%。建议保持相同取样条件继续监测，以确认变化是否持续。`,
+      `The latest value is ${Math.abs(change).toFixed(1)}% lower than the previous value. Continue monitoring under the same sampling conditions to confirm whether the change persists.`),basis:tr("规则：相邻时间点下降 ≥20%","Rule: ≥20% decrease between adjacent time points")};
+  return {level:"ok",title:tr("近期变化相对稳定","Recent values are relatively stable"),
+    text:tr(`最近两个时间点的变化为 ${change.toFixed(1)}%。建议按当前计划继续监测。`,
+      `The change between the latest two time points is ${change.toFixed(1)}%. Continue monitoring on the current schedule.`),basis:tr("规则：相邻时间点变化小于 20%","Rule: change between adjacent time points is below 20%")};
 }
 export function formatNumber(value) {
   const number = finiteNumber(value);
@@ -192,10 +293,12 @@ export function qcText(row, locale) {
   return known[String(row.qc).toUpperCase()]?.[locale === "zh" ? 0 : 1] ?? row.qc;
 }
 export function toCsv(records) {
-  const headers = ["v","type","run","plate","well","sample","analyte","value","unit","qc","signal","ts","seq"];
+  const headers = ["v","type","run","plate","well","sample","analyte","value","unit","qc","signal","date","recorded_at","time_source","timepoint","ts","seq"];
   const quote = value => '"' + String(value ?? "").replace(/"/g, '""') + '"';
   return "\ufeff" + headers.join(",") + "\r\n" + records.map(row => {
-    const data = {v:1, type:"result", ...row, value:row.concentration, ts:row.time, seq:row.sequence};
+    const recordedAt = normalizeTimestamp(row.recordedAt) || new Date().toISOString();
+    const data = {v:1, type:"result", ...row, value:row.concentration, date:recordDate({...row,recordedAt}),
+      recorded_at:recordedAt, time_source:row.timeSource||"imported", timepoint:row.timepoint||"", ts:recordedAt, seq:row.sequence};
     return headers.map(key => quote(data[key])).join(",");
   }).join("\r\n") + "\r\n";
 }
