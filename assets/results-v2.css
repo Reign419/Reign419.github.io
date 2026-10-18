@@ -85,3 +85,18 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
   .concentration-copy strong {font-size:1.3rem}
   .calibration-state .import-button {white-space:normal}
 }
+
+/* Record management */
+.records-summary-actions {display:flex;align-items:center;gap:14px}
+.clear-records-button,.record-delete-button {cursor:pointer;border:1.5px solid #b94a3c;border-radius:10px;background:#fff5f1;color:#922f27;font-weight:800}
+.clear-records-button {padding:7px 10px;font-size:10px}
+.record-delete-button {justify-self:end;padding:6px 9px;font-size:10px}
+.clear-records-button:hover,.record-delete-button:hover {background:#ffdcd4}
+.clear-records-button:disabled {cursor:default;opacity:.45}
+@media (min-width:761px){
+  .records-panel .result-row {grid-template-columns:40px minmax(220px,420px) minmax(130px,180px) minmax(150px,200px) minmax(100px,130px) minmax(68px,auto);column-gap:20px}
+}
+@media (max-width:760px){
+  .records-summary-actions {margin-left:auto}
+  .record-delete-button {grid-column:3;justify-self:end;margin-top:4px}
+}
