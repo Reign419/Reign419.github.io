@@ -111,6 +111,17 @@ export function recordKey(row) {
   const time = row?.timeSource === "provided" ? normalizeTimestamp(row?.recordedAt) : String(row?.timepoint ?? "");
   return [identity, measurement, time].join("|");
 }
+export function removeRecord(records, target) {
+  const targetKey = typeof target === "string" ? target : recordKey(target);
+  let removed = false;
+  return (records || []).filter(row => {
+    if (!removed && recordKey(row) === targetKey) {
+      removed = true;
+      return false;
+    }
+    return true;
+  });
+}
 export function mergeRecords(existing, incoming, limit = 2000) {
   const output = [], seen = new Set();
   for (const row of [...(existing || []), ...(incoming || [])]) {
