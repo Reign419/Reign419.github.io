@@ -17,10 +17,10 @@ The mobile interface accepts the same result payload over BLE or Wi-Fi.
 
 ## Accepted payloads
 
-Compact CSV:
+Compact CSV (analyte is required):
 
 ```text
-A1,12.3,nM,OK
+A1,12.3,nM,OK,10516,SA
 ```
 
 Version with sequence, signal, and analyte:
@@ -35,4 +35,4 @@ JSON:
 {"seq":42,"well":"A1","value":132.4,"unit":"uM","qc":"OK","signal":10516,"analyte":"SA"}
 ```
 
-The `seq` value should increase for each measurement. The preferred payload also includes `run`, `plate`, `sample`, `date` or `recorded_at`, and `time_source` so records remain traceable. `concentration` is accepted only as a legacy alias for `value`.
+The device must generate a new `run` identifier at every boot. `seq` may restart within that new run, but should increase for each measurement in the run. `analyte` is required because the three assays share the same optical emission. The preferred payload also includes `plate`, `sample`, `date` or `recorded_at`, and `time_source`. If the instrument has no real clock, omit `ts`; the browser assigns the receive timestamp and includes it in CSV export. `concentration` is accepted only as a legacy alias for `value`.

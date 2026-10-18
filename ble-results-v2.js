@@ -27,7 +27,8 @@ function parsePacket(raw,source="ble"){
   const text=String(raw||"").trim();if(!text)return null;
   if(text.startsWith("{")){try{return normalizeResult(JSON.parse(text),source)}catch{return null}}
   const fields=text.split(text.includes("|")?"|":",").map(field=>field.trim());if(fields.length<3)return null;
-  if(/^[A-H]0?(?:[1-9]|1[0-2])$/i.test(fields[0]))return normalizeResult({well:fields[0],concentration:fields[1],unit:fields[2],qc:fields[3]||"OK",signal:fields[4],hormone:fields[5]},source);
+  // Compact packets must include analyte; without it the result cannot be assigned to an assay.
+  if(/^[A-H]0?(?:[1-9]|1[0-2])$/i.test(fields[0])){if(fields.length<6||!fields[5])return null;return normalizeResult({well:fields[0],concentration:fields[1],unit:fields[2],qc:fields[3]||"OK",signal:fields[4],hormone:fields[5]},source);}
   if(/^[A-H]0?(?:[1-9]|1[0-2])$/i.test(fields[1])){const hasUnit=fields[3]&&!/^(OK|LOW|HIGH|NO_CAL|BELOW_RANGE|ABOVE_RANGE|SATURATED)$/i.test(fields[3]);return normalizeResult({seq:fields[0],well:fields[1],concentration:fields[2],unit:hasUnit?fields[3]:"µM",qc:hasUnit?fields[4]:fields[3],signal:hasUnit?fields[5]:fields[4],hormone:hasUnit?fields[6]:fields[5]},source)}
   return null;
 }
@@ -81,7 +82,7 @@ async function handleWifiMessage(event){let chunk=event.data;if(chunk instanceof
 function handleNotification(event){
   handleTextChunk(new TextDecoder().decode(event.target.value),'ble');
 }
-function handleTextChunk(chunk,source){state.receiveBuffers[source]=(state.receiveBuffers[source]||'')+chunk;const lines=state.receiveBuffers[source].split(/\r?\n/);state.receiveBuffers[source]=lines.pop()||'';lines.filter(Boolean).forEach(line=>acceptPacket(line,source));const buffer=state.receiveBuffers[source];if(buffer&&(buffer.startsWith('{')&&buffer.endsWith('}')||/^[^,|]+[,|][^,|]+[,|]/.test(buffer))){const result=parsePacket(buffer,source);if(result){state.receiveBuffers[source]='';addResult(result)}}}
+function handleTextChunk(chunk,source){state.receiveBuffers[source]=(state.receiveBuffers[source]||'')+chunk;const lines=state.receiveBuffers[source].split(/\r?\n/);state.receiveBuffers[source]=lines.pop()||'';lines.filter(Boolean).forEach(line=>acceptPacket(line,source))}
 function acceptPacket(raw,source){const result=parsePacket(raw,source);if(result)addResult(result);else console.warn('PlantSOS: unrecognized device packet',raw)}
 function addResult(result){if(!result)return;const duplicate=state.history.some(item=>PSData.recordKey({...item,analyte:item.hormone})===PSData.recordKey({...result,analyte:result.hormone}));if(duplicate)return;state.history.unshift(result);state.history=state.history.slice(0,100);saveHistory();renderLatest(result);renderHistory();syncDashboard(result);togglePanel(true)}
 function renderLatest(result){ui.latestLabel.textContent=`${t('latest')} · ${sourceLabel(result.source)}`;ui.latestValue.textContent=PSData.concentrationText(result,language());ui.latestUnit.textContent=result.concentration===null?'':result.unit;ui.latestWell.textContent=`${t('well')} ${result.well}`;ui.latestSignal.textContent=result.signal===null?'':`${t('signal')} ${result.signal.toLocaleString()}`;ui.latestQc.textContent=result.qc}
