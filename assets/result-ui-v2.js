@@ -1,4 +1,4 @@
-import * as data from "./result-data-v2.js";
+import * as data from "./result-data-v2.js?v=20261018-normal-ranges-v2";
 export function makeUi(React, JSX) {
   const h = (tag, props, ...children) => JSX.jsxs(tag, {...props, children});
   const text = (locale, zh, en) => locale === "zh" ? zh : en;
