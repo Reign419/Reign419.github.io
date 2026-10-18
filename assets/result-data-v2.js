@@ -241,9 +241,16 @@ export function nextStepAdvice(records, analyte, sample = "all", locale = "zh") 
     text:tr(`最近浓度为 ${formatNumber(latestAssessment.valueUm)} µM，低于 ${analyte} 正常下限 ${formatNumber(latestAssessment.range.min)} µM。建议在相同条件下复测，并检查取样、保存和标定过程。`,
       `The latest concentration is ${formatNumber(latestAssessment.valueUm)} µM, below the ${analyte} normal lower limit of ${formatNumber(latestAssessment.range.min)} µM. Repeat under the same conditions and review sampling, storage and calibration.`),
     basis:tr(`正常范围：${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`,`Normal range: ${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`)};
-  if (series.points.length < 2) return {level:latestAssessment?.status==="NORMAL"?"ok":"info", title:tr("当前浓度在正常范围内","Current concentration is within the normal range"),
-    text:tr("当前值处于该激素的正常范围；目前不足两个带日期的有效浓度点，建议在相同取样条件下增加下一次测量以判断趋势。",
-      "The current value is within this hormone's normal range. Fewer than two dated points are available, so add another measurement under the same sampling conditions to assess the trend."), basis:latestAssessment?.range?tr(`正常范围：${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`,`Normal range: ${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`):tr("依据：有效时间点少于 2 个","Basis: fewer than 2 valid time points")};
+  if (series.points.length < 2) {
+    if (latestAssessment?.status === "NORMAL") return {level:"ok", title:tr("当前浓度在正常范围内","Current concentration is within the normal range"),
+      text:tr("当前值处于该激素的正常范围；目前不足两个带日期的有效浓度点，建议在相同取样条件下增加下一次测量以判断趋势。",
+        "The current value is within this hormone's normal range. Fewer than two dated points are available, so add another measurement under the same sampling conditions to assess the trend."),
+      basis:tr(`正常范围：${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`,`Normal range: ${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`)};
+    return {level:"info", title:tr("继续采集时间点","Collect another time point"),
+      text:tr("目前不足两个带日期的有效浓度点，尚不能判断趋势。建议在相同取样条件下增加下一次测量。",
+        "Fewer than two dated concentration points are available. Add another measurement under the same sampling conditions before interpreting a trend."),
+      basis:tr("依据：有效时间点少于 2 个","Basis: fewer than 2 valid time points")};
+  }
   const previous=series.points.at(-2), latest=series.points.at(-1);
   const change=previous.value===0?null:(latest.value-previous.value)/Math.abs(previous.value)*100;
   if (change===null) return {level:"info",title:tr("继续监测","Continue monitoring"),text:tr("上一时间点为零，无法计算可靠的相对变化；建议补充一次重复测量。","The previous value was zero, so a reliable relative change cannot be calculated. Add a repeat measurement."),basis:tr("依据：最近两个有效时间点","Basis: latest two valid time points")};
