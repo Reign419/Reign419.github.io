@@ -37,6 +37,7 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 .history-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:12px}
 .history-heading h2 {margin:0;font-size:1.25rem}
 .history-heading p {margin:7px 0 0;color:#516c55;line-height:1.55}
+.history-heading .normal-range-note {display:inline-block;margin-top:9px;padding:6px 10px;border-radius:999px;background:#eef6d2;color:#315f39;font-size:.8rem;font-weight:750}
 .history-sample {display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:.86rem;font-weight:700;color:#48634c}
 .history-sample select {min-width:140px;padding:9px 30px 9px 11px;border:1px solid #9db295;border-radius:10px;background:#fffef8;color:#264c2e}
 .history-chart {display:block;width:100%;max-height:330px;margin-top:8px}
@@ -60,6 +61,14 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 .concentration-copy strong {overflow-wrap:anywhere}
 .result-row.qc-alert {margin:2px 0;padding-inline:10px;border-left:4px solid #c55245;border-radius:12px;background:#fff0ea}
 .result-row.qc-alert .qc-badge {color:#922f27;background:#ffd9d1;border:1px solid #d66b5f}
+.sample-dot.normal,.qc-badge.normal {color:#315f39;background:#e7f5dd}
+.sample-dot.below-range,.qc-badge.below-range {color:#865116;background:#fff0c9}
+.sample-dot.above-range,.qc-badge.above-range,.sample-dot.saturated,.qc-badge.saturated {color:#922f27;background:#ffd9d1}
+.sample-dot.unassessed,.qc-badge.unassessed,.sample-dot.uncalibrated,.qc-badge.uncalibrated {color:#59655d;background:#edf0ed}
+.result-row.range-below-range.qc-alert {border-left-color:#d38a2f;background:#fff7df}
+.result-row.range-below-range.qc-alert .qc-badge {color:#865116;background:#fff0c9;border-color:#d6a250}
+.result-row.range-unassessed.qc-alert,.result-row.range-uncalibrated.qc-alert {border-left-color:#8a948d;background:#f5f6f5}
+.result-row.range-unassessed.qc-alert .qc-badge,.result-row.range-uncalibrated.qc-alert .qc-badge {color:#59655d;background:#edf0ed;border-color:#aab2ac}
 @media (min-width:761px){
   .records-panel .result-row {grid-template-columns:40px minmax(220px,420px) minmax(130px,180px) minmax(150px,200px) minmax(100px,130px);justify-content:start;column-gap:24px}
   .records-panel .signal-copy span {font-size:16px;font-weight:750}
