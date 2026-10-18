@@ -97,7 +97,7 @@ export function makeUi(React, JSX) {
           fitPath&&h("path",{d:fitPath,className:"calibration-fit-line"}),
           ...selectedRows.map((point,index)=>h("circle",{
             key:point.row.id+"-"+index,cx:px(point.x),cy:py(point.y),r:6,
-            className:"calibration-dot"+(String(point.row.qc).toUpperCase()==="OK"?"":" qc-alert")
+            className:"calibration-dot"+(data.recordStatus(point.row).code==="NORMAL"?"":" qc-alert")
           },h("title",{},`${sampleText(locale,point.row.sample)||point.row.well} · ${data.formatNumber(point.x)} ${selectedUnit} · ${data.formatNumber(point.y)}`))),
           h("text",{x:(left+width-right)/2,y:height-7,textAnchor:"middle",className:"axis-label"},
             text(locale,"已知浓度","Known concentration")+(selectedUnit?` (${selectedUnit})`:"")),
@@ -143,7 +143,7 @@ export function makeUi(React, JSX) {
     const samples=[...new Set(records.filter(row=>data.normalizeAnalyte(row.analyte)===data.normalizeAnalyte(analyte)).map(row=>row.sample).filter(Boolean))];
     const [sample,setSample]=React.useState("all");
     React.useEffect(()=>{if(sample!=="all"&&!samples.includes(sample))setSample("all")},[analyte,records.length]);
-    const series=data.trendSeries(records,analyte,sample),points=series.points;
+    const series=data.trendSeries(records,analyte,sample),points=series.points,range=data.normalRange(analyte);
     const advice=data.nextStepAdvice(records,analyte,sample,locale);
     const width=760,height=300,left=66,right=28,top=28,bottom=58;
     let chart=null;
@@ -165,12 +165,15 @@ export function makeUi(React, JSX) {
     }
     return h("section",{className:"panel history-panel"},
       h("div",{className:"history-heading"},h("div",{},h("h2",{},text(locale,"历史趋势与下一步建议","History trend and next step")),
-        h("p",{},text(locale,"按记录日期分析；“全部样本”显示该激素每天的平均浓度。","Analysed by record date; All samples shows the daily mean for this analyte."))),
+        h("p",{},text(locale,"按记录日期分析；“全部样本”显示该激素每天的平均浓度。","Analysed by record date; All samples shows the daily mean for this analyte.")),
+        range&&h("p",{className:"normal-range-note"},text(locale,
+          `正常范围 ${data.formatNumber(range.min)}–${data.formatNumber(range.max)} µM · 演示初始参考值 ${data.formatNumber(range.initial)} µM`,
+          `Normal range ${data.formatNumber(range.min)}–${data.formatNumber(range.max)} µM · Demo initial reference ${data.formatNumber(range.initial)} µM`))),
         samples.length>0&&h("label",{className:"history-sample"},h("span",{},text(locale,"样本","Sample")),h("select",{value:sample,onChange:event=>setSample(event.target.value)},
-          h("option",{value:"all"},text(locale,"全部样本","All samples")),...samples.map(name=>h("option",{value:name,key:name},sampleText(locale,name))))),
+          h("option",{value:"all"},text(locale,"全部样本","All samples")),...samples.map(name=>h("option",{value:name,key:name},sampleText(locale,name)))))),
       points.length?chart:h("div",{className:"history-empty"},text(locale,"导入至少一条带日期的有效浓度记录后显示趋势。","Import at least one dated concentration result to display a trend.")),
       h("div",{className:`advice-card ${advice.level}`},h("strong",{},advice.title),h("p",{},advice.text),h("small",{},advice.basis)),
-      h("p",{className:"advice-disclaimer"},text(locale,"此建议来自透明的 QC 与相对变化规则，不是经验证的植物学诊断；处理植物前请结合实验设计和专业判断。","This suggestion uses transparent QC and relative-change rules. It is not a validated plant diagnosis; consider the experimental design and expert judgement before acting.")));
+      h("p",{className:"advice-disclaimer"},text(locale,"此建议依据指定正常范围、来源 QC 与相对变化规则，不是经验证的植物学诊断；处理植物前请结合实验设计和专业判断。","This suggestion uses the specified normal ranges, source QC and relative-change rules. It is not a validated plant diagnosis; consider the experimental design and expert judgement before acting.")));
   }
   function Notes({locale}) {
     return h("details",{className:"panel result-notes",open:true},
@@ -181,6 +184,9 @@ export function makeUi(React, JSX) {
       h("p",{},text(locale,
         "value 为设备或文件提供的浓度，unit 为浓度单位，qc 保留来源值；网站未重新验证设备标定。原始 signal 不会用演示曲线换算。相同激素的兼容浓度单位会统一后统计，单位缺失或不兼容的记录不纳入平均值。",
         "Value is a provided concentration; unit is its concentration unit. QC is preserved from the source; calibration has not been revalidated by this website. Raw signals are never converted using the demo curve. Compatible units are converted within one analyte; missing or incompatible units are excluded from its average.")),
+      h("p",{},text(locale,
+        "正常范围统一按 µM 判断：SA 0.3–3、ABA 0.005–0.05、JA-Ile 10–100。演示数据初始参考值分别为 1、0.02、50 µM；下一值在上一次的 90%–110% 内随机生成，并受对应正常范围上下限约束。这只是演示浓度生成规则，不代表实际测量。",
+        "Normal ranges are assessed in µM: SA 0.3–3, ABA 0.005–0.05 and JA-Ile 10–100. Demo initial references are 1, 0.02 and 50 µM respectively; each next value is generated randomly within 90%–110% of the previous value and clipped to the corresponding normal bounds. This is a demo-generation rule, not an actual measurement.")),
       h("p",{},text(locale,
         "BLE 面板保留最近 100 条浏览器记录，新接收或新导入的结果会去重后追加到当前历史。CSV 包含年月日和完整时间戳；原数据缺少有效日期时使用导入时间并标记。仪器 Wi-Fi 缓存为最近 96 条，断电清空；通过 CSV 导入本网站。数据仅在当前浏览器处理。",
         "The BLE panel keeps the latest 100 browser records. Newly received or imported results are deduplicated and appended to local history. CSV exports include a date and full timestamp; when the source has no valid date, import time is used and marked. Instrument Wi-Fi caches the latest 96 results in volatile memory; transfer them here through CSV. Data is processed in this browser.")));
