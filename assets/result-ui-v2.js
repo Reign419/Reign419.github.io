@@ -2,6 +2,18 @@ import * as data from "./result-data-v2.js";
 export function makeUi(React, JSX) {
   const h = (tag, props, ...children) => JSX.jsxs(tag, {...props, children});
   const text = (locale, zh, en) => locale === "zh" ? zh : en;
+  const sampleText = (locale, value) => {
+    const sample = String(value ?? "");
+    if (locale === "zh") return sample;
+    return sample
+      .replace(/演示植株/g, "Demo plant")
+      .replace(/模拟植株/g, "Simulated plant")
+      .replace(/^样本/g, "Sample")
+      .replace(/叶片/g, "Leaf")
+      .replace(/对照/g, "Control")
+      .replace(/水稻/g, "Rice")
+      .replace(/拟南芥/g, "Arabidopsis");
+  };
   function Filters({records, selected, onChange, locale}) {
     const choices = [...new Set(["SA", "ABA", "JA-Ile", ...records.map(row => row.analyte)])];
     return h("div", {className:"overview-select"},
@@ -24,7 +36,7 @@ export function makeUi(React, JSX) {
     const ticks=[min+(max-min)*0.08,(min+max)/2,max-(max-min)*0.08];
     const dots=rows.map((row,index)=>h("g",{key:row.id+"-"+index},
       h("circle",{cx:x(index),cy:y(row.signal),r:5,className:"standard-dot"},
-        h("title",{},[row.sample,row.well,row.signal].join(" · "))),
+        h("title",{},[sampleText(locale,row.sample),row.well,row.signal].join(" · "))),
       ...(rows.length <= 12 ? [h("text",{x:x(index),y:height-20,textAnchor:"middle"},row.well || String(index+1))] : [])));
     return h("div",{className:"sample-signal-plot"},
       h("p",{},analyte+" · "+text(locale,"样本采集信号","Sample acquired signals")),
@@ -86,7 +98,7 @@ export function makeUi(React, JSX) {
           ...selectedRows.map((point,index)=>h("circle",{
             key:point.row.id+"-"+index,cx:px(point.x),cy:py(point.y),r:6,
             className:"calibration-dot"+(String(point.row.qc).toUpperCase()==="OK"?"":" qc-alert")
-          },h("title",{},`${point.row.sample||point.row.well} · ${data.formatNumber(point.x)} ${selectedUnit} · ${data.formatNumber(point.y)}`))),
+          },h("title",{},`${sampleText(locale,point.row.sample)||point.row.well} · ${data.formatNumber(point.x)} ${selectedUnit} · ${data.formatNumber(point.y)}`))),
           h("text",{x:(left+width-right)/2,y:height-7,textAnchor:"middle",className:"axis-label"},
             text(locale,"已知浓度","Known concentration")+(selectedUnit?` (${selectedUnit})`:"")),
           h("text",{x:left+8,y:16,className:"axis-label"},text(locale,"采集信号","Signal"))),
@@ -155,7 +167,7 @@ export function makeUi(React, JSX) {
       h("div",{className:"history-heading"},h("div",{},h("h2",{},text(locale,"历史趋势与下一步建议","History trend and next step")),
         h("p",{},text(locale,"按记录日期分析；“全部样本”显示该激素每天的平均浓度。","Analysed by record date; All samples shows the daily mean for this analyte."))),
         samples.length>0&&h("label",{className:"history-sample"},h("span",{},text(locale,"样本","Sample")),h("select",{value:sample,onChange:event=>setSample(event.target.value)},
-          h("option",{value:"all"},text(locale,"全部样本","All samples")),...samples.map(name=>h("option",{value:name,key:name},name))))),
+          h("option",{value:"all"},text(locale,"全部样本","All samples")),...samples.map(name=>h("option",{value:name,key:name},sampleText(locale,name))))),
       points.length?chart:h("div",{className:"history-empty"},text(locale,"导入至少一条带日期的有效浓度记录后显示趋势。","Import at least one dated concentration result to display a trend.")),
       h("div",{className:`advice-card ${advice.level}`},h("strong",{},advice.title),h("p",{},advice.text),h("small",{},advice.basis)),
       h("p",{className:"advice-disclaimer"},text(locale,"此建议来自透明的 QC 与相对变化规则，不是经验证的植物学诊断；处理植物前请结合实验设计和专业判断。","This suggestion uses transparent QC and relative-change rules. It is not a validated plant diagnosis; consider the experimental design and expert judgement before acting.")));
