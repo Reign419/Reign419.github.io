@@ -149,6 +149,34 @@ export function normalizeRows(rows, source = "file") {
   return output;
 }
 const MOLAR = {"M": 1, "mM": 1e-3, "µM": 1e-6, "nM": 1e-9, "pM": 1e-12};
+export const HORMONE_STANDARDS = Object.freeze({
+  SA: Object.freeze({initial:1, min:0.3, max:3, unit:"µM"}),
+  ABA: Object.freeze({initial:0.02, min:0.005, max:0.05, unit:"µM"}),
+  "JA-Ile": Object.freeze({initial:50, min:10, max:100, unit:"µM"})
+});
+export function normalRange(analyte) {
+  return HORMONE_STANDARDS[normalizeAnalyte(analyte)] || null;
+}
+export function classifyConcentration(analyte, value, unit) {
+  const range = normalRange(analyte), number = finiteNumber(value), sourceUnit = normalizeUnit(unit);
+  if (!range || number === null || !sourceUnit || !MOLAR[sourceUnit]) {
+    return {status:"UNASSESSED", range, valueUm:null};
+  }
+  const valueUm = number * MOLAR[sourceUnit] / MOLAR[range.unit];
+  const status = valueUm < range.min ? "BELOW_RANGE" : valueUm > range.max ? "ABOVE_RANGE" : "NORMAL";
+  return {status, range, valueUm};
+}
+export function recordStatus(row) {
+  const sourceQc = String(row?.qc || "").toUpperCase();
+  if (sourceQc === "SATURATED") return {code:"SATURATED", ...classifyConcentration(row?.analyte,row?.concentration,row?.unit)};
+  if (finiteNumber(row?.concentration) === null || sourceQc === "NO_CAL") return {code:"UNCALIBRATED", ...classifyConcentration(row?.analyte,row?.concentration,row?.unit)};
+  const assessment = classifyConcentration(row?.analyte,row?.concentration,row?.unit);
+  if (assessment.status !== "UNASSESSED") return {code:assessment.status, ...assessment};
+  if (["HIGH","ABOVE_RANGE"].includes(sourceQc)) return {code:"ABOVE_RANGE", ...assessment};
+  if (["LOW","BELOW_RANGE"].includes(sourceQc)) return {code:"BELOW_RANGE", ...assessment};
+  if (sourceQc === "OK") return {code:"NORMAL", ...assessment};
+  return {code:"UNASSESSED", ...assessment};
+}
 export function summarize(records, analyte) {
   const rows = records.filter(row => normalizeAnalyte(row.analyte) === normalizeAnalyte(analyte));
   const target = rows.find(row => finiteNumber(row.concentration) !== null && normalizeUnit(row.unit));
@@ -157,7 +185,7 @@ export function summarize(records, analyte) {
   let excluded = 0, alerts = 0;
   for (const row of rows) {
     const value = finiteNumber(row.concentration), sourceUnit = normalizeUnit(row.unit);
-    if (String(row.qc).toUpperCase() !== "OK" || value === null) alerts++;
+    if (recordStatus(row).code !== "NORMAL") alerts++;
     if (value === null || !unit || !sourceUnit) { excluded++; continue; }
     if (sourceUnit === unit) values.push(value);
     else if (MOLAR[sourceUnit] && MOLAR[unit]) values.push(value * MOLAR[sourceUnit] / MOLAR[unit]);
@@ -195,18 +223,27 @@ export function nextStepAdvice(records, analyte, sample = "all", locale = "zh") 
   const rows = (records || []).filter(row=>normalizeAnalyte(row.analyte)===normalizeAnalyte(analyte)
     && (sample==="all"||row.sample===sample));
   const tr = (zh,en)=>locale==="zh"?zh:en;
-  const severe = rows.filter(row=>["HIGH","ABOVE_RANGE","SATURATED"].includes(String(row.qc).toUpperCase()));
+  const severe = rows.filter(row=>String(row.qc).toUpperCase()==="SATURATED");
   const uncalibrated = rows.filter(row=>row.concentration===null||String(row.qc).toUpperCase()==="NO_CAL");
-  if (severe.length) return {level:"alert", title:tr("优先复核异常结果","Review abnormal results first"),
-    text:tr(`发现 ${severe.length} 条偏高、超范围或饱和记录。建议检查空白和标定状态，必要时稀释样本并重复测量。`,
-      `${severe.length} high, above-range, or saturated result(s) were found. Check blanks and calibration; dilute and repeat the sample when appropriate.`), basis:tr("依据：来源 QC 状态","Basis: source QC status")};
+  if (severe.length) return {level:"alert", title:tr("优先复核饱和信号","Review saturated signals first"),
+    text:tr(`发现 ${severe.length} 条信号饱和记录。建议检查空白和标定状态，必要时稀释样本并重复测量。`,
+      `${severe.length} saturated signal result(s) were found. Check blanks and calibration; dilute and repeat the sample when appropriate.`), basis:tr("依据：来源 QC 的信号饱和状态","Basis: saturated source QC status")};
   if (uncalibrated.length) return {level:"warn", title:tr("先完成标定再判断变化","Calibrate before interpreting change"),
     text:tr(`有 ${uncalibrated.length} 条记录只有 signal、没有有效浓度。请用对应激素的已知标准品完成标定后重新分析。`,
       `${uncalibrated.length} result(s) contain signal without a valid concentration. Calibrate with known standards for this analyte, then analyse again.`), basis:tr("依据：缺少有效浓度","Basis: valid concentration missing")};
   const series = trendSeries(rows, analyte, sample);
-  if (series.points.length < 2) return {level:"info", title:tr("继续采集时间点","Collect another time point"),
-    text:tr("目前不足两个带日期的有效浓度点，尚不能判断趋势。建议在相同取样条件下增加下一次测量。",
-      "Fewer than two dated concentration points are available. Add another measurement under the same sampling conditions before interpreting a trend."), basis:tr("依据：有效时间点少于 2 个","Basis: fewer than 2 valid time points")};
+  const latestPoint=series.points.at(-1), latestAssessment=latestPoint?classifyConcentration(analyte,latestPoint.value,series.unit):null;
+  if (latestAssessment?.status === "ABOVE_RANGE") return {level:"alert", title:tr("浓度高于正常范围","Concentration above the normal range"),
+    text:tr(`最近浓度为 ${formatNumber(latestAssessment.valueUm)} µM，高于 ${analyte} 正常上限 ${formatNumber(latestAssessment.range.max)} µM。建议先复测确认，并结合植株症状、取样位置和环境条件判断。`,
+      `The latest concentration is ${formatNumber(latestAssessment.valueUm)} µM, above the ${analyte} normal upper limit of ${formatNumber(latestAssessment.range.max)} µM. Repeat the measurement, then review plant symptoms, sampling position and environmental conditions.`),
+    basis:tr(`正常范围：${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`,`Normal range: ${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`)};
+  if (latestAssessment?.status === "BELOW_RANGE") return {level:"warn", title:tr("浓度低于正常范围","Concentration below the normal range"),
+    text:tr(`最近浓度为 ${formatNumber(latestAssessment.valueUm)} µM，低于 ${analyte} 正常下限 ${formatNumber(latestAssessment.range.min)} µM。建议在相同条件下复测，并检查取样、保存和标定过程。`,
+      `The latest concentration is ${formatNumber(latestAssessment.valueUm)} µM, below the ${analyte} normal lower limit of ${formatNumber(latestAssessment.range.min)} µM. Repeat under the same conditions and review sampling, storage and calibration.`),
+    basis:tr(`正常范围：${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`,`Normal range: ${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`)};
+  if (series.points.length < 2) return {level:latestAssessment?.status==="NORMAL"?"ok":"info", title:tr("当前浓度在正常范围内","Current concentration is within the normal range"),
+    text:tr("当前值处于该激素的正常范围；目前不足两个带日期的有效浓度点，建议在相同取样条件下增加下一次测量以判断趋势。",
+      "The current value is within this hormone's normal range. Fewer than two dated points are available, so add another measurement under the same sampling conditions to assess the trend."), basis:latestAssessment?.range?tr(`正常范围：${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`,`Normal range: ${formatNumber(latestAssessment.range.min)}–${formatNumber(latestAssessment.range.max)} µM`):tr("依据：有效时间点少于 2 个","Basis: fewer than 2 valid time points")};
   const previous=series.points.at(-2), latest=series.points.at(-1);
   const change=previous.value===0?null:(latest.value-previous.value)/Math.abs(previous.value)*100;
   if (change===null) return {level:"info",title:tr("继续监测","Continue monitoring"),text:tr("上一时间点为零，无法计算可靠的相对变化；建议补充一次重复测量。","The previous value was zero, so a reliable relative change cannot be calculated. Add a repeat measurement."),basis:tr("依据：最近两个有效时间点","Basis: latest two valid time points")};
@@ -290,18 +327,17 @@ export function fitCalibration(input) {
   return logisticAic+2<linearAic?logistic:linear;
 }
 export function qcText(row, locale) {
-  if (row.concentration === null && String(row.qc).toUpperCase() === "OK") return locale === "zh" ? "OK · 待标定" : "OK · Uncalibrated";
+  const status = recordStatus(row).code;
   const known = {
-    OK: ["通过", "Pass"],
-    LOW: ["偏低", "Low"],
-    HIGH: ["偏高", "High"],
-    ABOVE_RANGE: ["超出范围", "Above range"],
-    BELOW_RANGE: ["低于范围", "Below range"],
+    NORMAL: ["正常", "Normal"],
+    ABOVE_RANGE: ["高于正常范围", "Above normal"],
+    BELOW_RANGE: ["低于正常范围", "Below normal"],
     SATURATED: ["信号饱和", "Saturated"],
-    NO_CAL: ["待标定", "Uncalibrated"],
-    NOT_PROVIDED: ["未提供", "Not provided"]
+    UNCALIBRATED: ["待标定", "Uncalibrated"],
+    UNASSESSED: ["无法判断", "Not assessed"]
   };
-  return known[String(row.qc).toUpperCase()]?.[locale === "zh" ? 0 : 1] ?? row.qc;
+  if (status === "UNASSESSED" && row.qc && String(row.qc).toUpperCase() !== "NOT_PROVIDED") return row.qc;
+  return known[status]?.[locale === "zh" ? 0 : 1] ?? row.qc;
 }
 export function toCsv(records) {
   const headers = ["v","type","run","plate","well","sample","analyte","value","unit","qc","signal","date","recorded_at","time_source","timepoint","ts","seq"];
