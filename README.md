@@ -4,6 +4,8 @@ PlantSOS is a mobile-first, installable web application developed by the CUHKSZ 
 
 The software is intended for field users, wet-lab team members, judges, and future iGEM teams who need to inspect SA, ABA, and JA-Ile results without a laboratory computer. It runs entirely in a supported browser and does not require an account or cloud database.
 
+Official iGEM source repository: <https://gitlab.igem.org/2026/software/cuhk-shenzhen/website-app>
+
 Live demonstration: <https://reign419.github.io/>
 
 ## Features
@@ -62,8 +64,8 @@ Requirements:
 Clone the team's official iGEM GitLab repository and install the exact dependency graph:
 
 ```bash
-git clone <official-iGEM-GitLab-repository-url>
-cd <repository-directory>
+git clone https://gitlab.igem.org/2026/software/cuhk-shenzhen/website-app.git
+cd website-app
 npm ci
 ```
 
@@ -188,7 +190,7 @@ The suggestions are workflow prompts, not autonomous scientific conclusions. The
 
 ## Repository and release policy
 
-The competition submission must be hosted in the CUHKSZ team's official repository on iGEM GitLab. Other mirrors and deployment repositories are supplementary and do not replace the official iGEM GitLab submission.
+The competition submission is hosted in the CUHKSZ team's official [iGEM GitLab Website App repository](https://gitlab.igem.org/2026/software/cuhk-shenzhen/website-app). Other mirrors and deployment repositories are supplementary and do not replace this official submission.
 
 Keep the repository below 50 MB. Store large datasets, videos, model weights, and other heavy artifacts on Zenodo and link their DOI from this README rather than committing them to Git.
 
