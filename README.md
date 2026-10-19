@@ -152,6 +152,7 @@ The preferred JSON/JSONL payload is:
 ├── samples/                 Synthetic reproducibility data
 ├── scripts/                 Dependency-free build and local server
 ├── tests/                   Node.js tests
+├── .gitlab-ci.yml           iGEM GitLab verification pipeline
 ├── index.html               Application entry point
 ├── ble-results-v2.js        BLE result receiver
 ├── phase1-results-v2.js     Device and PWA integration
