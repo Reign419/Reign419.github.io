@@ -168,11 +168,12 @@ export function classifyConcentration(analyte, value, unit) {
 }
 export function recordStatus(row) {
   const sourceQc = String(row?.qc || "").toUpperCase();
+  if (sourceQc === "SATURATED") return {code:"SATURATED", ...classifyConcentration(row?.analyte,row?.concentration,row?.unit)};
+  if (finiteNumber(row?.concentration) === null || sourceQc === "NO_CAL") return {code:"UNCALIBRATED", ...classifyConcentration(row?.analyte,row?.concentration,row?.unit)};
   const assessment = classifyConcentration(row?.analyte,row?.concentration,row?.unit);
-  if (sourceQc === "SATURATED") return {code:"SATURATED", ...assessment};
+  if (assessment.status !== "UNASSESSED") return {code:assessment.status, ...assessment};
   if (["HIGH","ABOVE_RANGE"].includes(sourceQc)) return {code:"ABOVE_RANGE", ...assessment};
   if (["LOW","BELOW_RANGE"].includes(sourceQc)) return {code:"BELOW_RANGE", ...assessment};
-  if (finiteNumber(row?.concentration) === null || sourceQc === "NO_CAL") return {code:"UNCALIBRATED", ...assessment};
   if (sourceQc === "OK") return {code:"NORMAL", ...assessment};
   return {code:"UNASSESSED", ...assessment};
 }
