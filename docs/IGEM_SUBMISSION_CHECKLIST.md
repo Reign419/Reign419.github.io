@@ -24,7 +24,7 @@ For an empty official GitLab repository:
 git clone https://github.com/Reign419/Reign419.github.io.git plantsos-software
 cd plantsos-software
 git remote rename origin github
-git remote add igem <official-iGEM-GitLab-repository-url>
+git remote add igem https://gitlab.igem.org/2026/software/cuhk-shenzhen/website-app.git
 npm ci
 npm run verify
 git push -u igem main
