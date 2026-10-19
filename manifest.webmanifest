@@ -1,15 +1,18 @@
 {
-  "name": "CUHKSZ iGEM · PlantSOS 激素分析仪",
+  "name": "CUHKSZ iGEM · PlantSOS Hormone Analyzer",
   "short_name": "PlantSOS",
-  "description": "CUHKSZ iGEM 的 PlantSOS 移动分析工具。",
-  "lang": "zh-CN",
+  "description": "PlantSOS mobile tool for importing, receiving and reviewing plant hormone assay results.",
+  "lang": "en",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#fffdf3",
   "theme_color": "#3c7044",
-  "categories": ["science", "medical", "utilities"],
+  "categories": [
+    "science",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

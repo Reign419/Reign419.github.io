@@ -39,7 +39,10 @@ const optional = [
   "manifest.webmanifest",
   "icon-192.png",
   "icon-512.png",
-  "cuhksz-igem-logo.png"
+  "cuhksz-igem-logo.png",
+  "favicon.svg",
+  ".nojekyll",
+  "_headers"
 ];
 
 for (const entry of required) {
