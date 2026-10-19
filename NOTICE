@@ -1,0 +1,20 @@
+PlantSOS Hormone Analyzer
+Copyright 2026 CUHKSZ iGEM Team
+
+PlantSOS includes or redistributes the following open-source components:
+
+- React 19.2.6 and React DOM 19.2.6
+  Copyright Meta Platforms, Inc. and affiliates.
+  Licensed under the MIT License.
+  https://react.dev/
+
+- SheetJS Community Edition (xlsx) 0.18.5
+  Copyright SheetJS LLC.
+  Licensed under the Apache License 2.0.
+  https://sheetjs.com/
+
+The corresponding bundled browser code is stored in the assets directory.
+The licenses of those components continue to apply to their respective code.
+
+The CUHKSZ iGEM and PlantSOS names and artwork are not licensed as trademarks
+under the Apache License. See LICENSE section 6.
