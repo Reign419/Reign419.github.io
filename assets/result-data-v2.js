@@ -166,14 +166,16 @@ export function classifyConcentration(analyte, value, unit) {
   const status = valueUm < range.min ? "BELOW_RANGE" : valueUm > range.max ? "ABOVE_RANGE" : "NORMAL";
   return {status, range, valueUm};
 }
+const DEVICE_QC_HIGH = ["HIGH","ABOVE_RANGE"], DEVICE_QC_LOW = ["LOW","BELOW_RANGE"];
 export function recordStatus(row) {
   const sourceQc = String(row?.qc || "").toUpperCase();
   if (sourceQc === "SATURATED") return {code:"SATURATED", ...classifyConcentration(row?.analyte,row?.concentration,row?.unit)};
   if (finiteNumber(row?.concentration) === null || sourceQc === "NO_CAL") return {code:"UNCALIBRATED", ...classifyConcentration(row?.analyte,row?.concentration,row?.unit)};
   const assessment = classifyConcentration(row?.analyte,row?.concentration,row?.unit);
+  // Instrument QC outside the calibration range takes priority over the biological reference range.
+  if (DEVICE_QC_HIGH.includes(sourceQc)) return {code:"CAL_HIGH", ...assessment};
+  if (DEVICE_QC_LOW.includes(sourceQc)) return {code:"CAL_LOW", ...assessment};
   if (assessment.status !== "UNASSESSED") return {code:assessment.status, ...assessment};
-  if (["HIGH","ABOVE_RANGE"].includes(sourceQc)) return {code:"ABOVE_RANGE", ...assessment};
-  if (["LOW","BELOW_RANGE"].includes(sourceQc)) return {code:"BELOW_RANGE", ...assessment};
   if (sourceQc === "OK") return {code:"NORMAL", ...assessment};
   return {code:"UNASSESSED", ...assessment};
 }
@@ -224,10 +226,15 @@ export function nextStepAdvice(records, analyte, sample = "all", locale = "zh") 
     && (sample==="all"||row.sample===sample));
   const tr = (zh,en)=>locale==="zh"?zh:en;
   const severe = rows.filter(row=>String(row.qc).toUpperCase()==="SATURATED");
+  const outOfCal = rows.filter(row=>row.concentration!==null&&[...DEVICE_QC_HIGH,...DEVICE_QC_LOW].includes(String(row.qc).toUpperCase()));
   const uncalibrated = rows.filter(row=>row.concentration===null||String(row.qc).toUpperCase()==="NO_CAL");
   if (severe.length) return {level:"alert", title:tr("优先复核饱和信号","Review saturated signals first"),
     text:tr(`发现 ${severe.length} 条信号饱和记录。建议检查空白和标定状态，必要时稀释样本并重复测量。`,
       `${severe.length} saturated signal result(s) were found. Check blanks and calibration; dilute and repeat the sample when appropriate.`), basis:tr("依据：来源 QC 的信号饱和状态","Basis: saturated source QC status")};
+  if (outOfCal.length) return {level:"alert", title:tr("读数超出标定范围","Readings outside the calibration range"),
+    text:tr(`仪器报告 ${outOfCal.length} 条读数超出标定曲线范围，对应浓度为外推值。建议检查空白和标定；高于上限时稀释样本，低于下限时浓缩或增加样本量后重复测量。`,
+      `The instrument flagged ${outOfCal.length} reading(s) outside the calibration curve, so those concentrations are extrapolated. Check blanks and calibration; dilute samples above the upper limit, or concentrate samples below the lower limit, then repeat.`),
+    basis:tr("依据：仪器 QC（HIGH / LOW）","Basis: instrument QC (HIGH / LOW)")};
   if (uncalibrated.length) return {level:"warn", title:tr("先完成标定再判断变化","Calibrate before interpreting change"),
     text:tr(`有 ${uncalibrated.length} 条记录只有 signal、没有有效浓度。请用对应激素的已知标准品完成标定后重新分析。`,
       `${uncalibrated.length} result(s) contain signal without a valid concentration. Calibrate with known standards for this analyte, then analyse again.`), basis:tr("依据：缺少有效浓度","Basis: valid concentration missing")};
@@ -266,7 +273,7 @@ export function nextStepAdvice(records, analyte, sample = "all", locale = "zh") 
 }
 export function formatNumber(value) {
   const number = finiteNumber(value);
-  return number === null ? "—" : Number(number.toPrecision(6)).toString();
+  return number === null ? "—" : Number(number.toPrecision(4)).toString();
 }
 export function concentrationText(row, locale) {
   if (row.concentration === null) return locale === "zh" ? "待标定" : "Uncalibrated";
@@ -341,6 +348,8 @@ export function qcText(row, locale) {
     BELOW_RANGE: ["低于正常范围", "Below normal"],
     SATURATED: ["信号饱和", "Saturated"],
     UNCALIBRATED: ["待标定", "Uncalibrated"],
+    CAL_HIGH: ["超出标定上限", "Above calibration range"],
+    CAL_LOW: ["低于标定下限", "Below calibration range"],
     UNASSESSED: ["无法判断", "Not assessed"]
   };
   if (status === "UNASSESSED" && row.qc && String(row.qc).toUpperCase() !== "NOT_PROVIDED") return row.qc;

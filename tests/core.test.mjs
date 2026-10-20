@@ -45,3 +45,17 @@ assert.match(csv, /2026-10-15/);
 assert.match(csv, /Plant-01/);
 
 console.log("PASS: normalization, ranges, units, trends, merge/delete and CSV export.");
+
+// Instrument QC outside the calibration range takes priority over the reference range.
+{
+  const inRange = {analyte: "SA", concentration: 1, unit: "µM", recordedAt: "2026-10-18T00:00:00Z", timeSource: "provided"};
+  assert.equal(data.recordStatus({...inRange, qc: "HIGH"}).code, "CAL_HIGH");
+  assert.equal(data.recordStatus({...inRange, qc: "BELOW_RANGE"}).code, "CAL_LOW");
+  assert.equal(data.recordStatus({...inRange, qc: "OK"}).code, "NORMAL");
+  assert.equal(data.qcText({...inRange, qc: "HIGH"}, "en"), "Above calibration range");
+  const advice = data.nextStepAdvice([{...inRange, qc: "HIGH"}], "SA", "all", "en");
+  assert.equal(advice.level, "alert");
+  assert.match(advice.title, /calibration range/);
+  assert.equal(data.formatNumber(1.0846667), "1.085");
+  console.log("PASS: instrument QC priority and display precision.");
+}

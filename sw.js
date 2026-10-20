@@ -1,4 +1,4 @@
-const CACHE_NAME="plantsos-pwa-v18-final-20261020";
+const CACHE_NAME="plantsos-pwa-v19-calqc-20261020";
 const APP_SHELL=["/","/manifest.webmanifest","/icon-192.png","/icon-512.png","/cuhksz-igem-logo.png","/ble.css","/wifi.css","/phase1.css","/ble-results-v2.js","/phase1-results-v2.js","/assets/page-results-v2.js","/assets/bootstrap-results-v2.js","/assets/result-data-v2.js","/assets/result-ui-v2.js","/assets/results-v2.css"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(async cache=>{
