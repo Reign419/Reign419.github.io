@@ -113,3 +113,7 @@ body[data-plantsos-loading] .demo-badge {visibility:hidden}
 /* Instrument QC: outside calibration range (measurement quality, not biology) */
 .result-row.range-cal-high.qc-alert,.result-row.range-cal-low.qc-alert{border-left-color:#6b5fb5;background:#f3f1fb}
 .qc-badge.cal-high,.qc-badge.cal-low,.sample-dot.cal-high,.sample-dot.cal-low,.result-row.range-cal-high.qc-alert .qc-badge,.result-row.range-cal-low.qc-alert .qc-badge{color:#43398a;background:#e6e2f7;border-color:#9a90d6}
+
+/* Consistency check: points that do not follow the shared curve */
+.calibration-dot.off-curve{fill:#ffd9d1;stroke:#922f27;stroke-width:3}
+.fit-summary.has-off-curve{background:#ffe9e4;color:#922f27}

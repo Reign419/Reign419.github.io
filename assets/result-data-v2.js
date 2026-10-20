@@ -340,6 +340,28 @@ export function fitCalibration(input) {
   const logisticAic=n*Math.log(safe(logistic.sse)/n)+8;
   return logisticAic+2<linearAic?logistic:linear;
 }
+// Flags points that do not follow the same concentration–signal curve as the rest.
+// A first fit is used to drop gross outliers, then the curve is refitted on the remaining points.
+export function curveConsistency(input) {
+  const points = (input || []).map(point => ({x:finiteNumber(point.x), y:finiteNumber(point.y)}))
+    .filter(point => point.x !== null && point.y !== null);
+  const robustSigma = values => {
+    const sorted = values.map(Math.abs).sort((a,b)=>a-b);
+    return 1.4826 * (sorted[Math.floor(sorted.length / 2)] ?? 0);
+  };
+  const first = fitCalibration(points);
+  if (!first || points.length < 4) return {offCurve: [], threshold: null, fit: first};
+  const firstResiduals = points.map(point => point.y - first.predict(point.x));
+  const firstCut = 3 * robustSigma(firstResiduals);
+  const inliers = points.filter((_, index) => Math.abs(firstResiduals[index]) <= firstCut || firstCut === 0);
+  const fit = (inliers.length >= 4 && fitCalibration(inliers)) || first;
+  const residuals = points.map(point => point.y - fit.predict(point.x));
+  const ys = points.map(point => point.y);
+  const span = Math.max(...ys) - Math.min(...ys);
+  const threshold = Math.max(5 * robustSigma(residuals), 0.02 * span, 1e-12);
+  const offCurve = residuals.flatMap((value, index) => Math.abs(value) > threshold ? [index] : []);
+  return {offCurve, threshold, fit};
+}
 export function qcText(row, locale) {
   const status = recordStatus(row).code;
   const known = {

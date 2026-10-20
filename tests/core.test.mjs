@@ -59,3 +59,15 @@ console.log("PASS: normalization, ranges, units, trends, merge/delete and CSV ex
   assert.equal(data.formatNumber(1.0846667), "1.085");
   console.log("PASS: instrument QC priority and display precision.");
 }
+
+// Consistency check flags results that do not follow the shared firmware curve.
+{
+  const curve = x => 0.5 + 0.25 * x / (x + 1.2);
+  const points = [0.1, 0.3, 0.6, 1, 1.5, 2, 3, 5].map(x => ({x, y: curve(x)}));
+  const clean = data.curveConsistency(points);
+  assert.equal(clean.offCurve.length, 0);
+  const bad = [...points, {x: 1.2, y: curve(1.2) + 0.05}];
+  const flagged = data.curveConsistency(bad);
+  assert.deepEqual(flagged.offCurve, [8]);
+  console.log("PASS: conversion consistency check.");
+}

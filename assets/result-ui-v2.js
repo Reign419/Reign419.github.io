@@ -1,4 +1,4 @@
-import * as data from "./result-data-v2.js?v=20261018-normal-ranges-v3";
+import * as data from "./result-data-v2.js?v=20261021-consistency";
 export function makeUi(React, JSX) {
   const h = (tag, props, ...children) => JSX.jsxs(tag, {...props, children});
   const text = (locale, zh, en) => locale === "zh" ? zh : en;
@@ -62,7 +62,9 @@ export function makeUi(React, JSX) {
     const selectedRows=records.map(row=>({row,x:data.convertConcentration(row,selectedUnit),y:data.finiteNumber(row.signal)}))
       .filter(point=>data.normalizeAnalyte(point.row.analyte)===selected&&point.x!==null&&point.y!==null)
       .sort((a,b)=>a.x-b.x);
-    const fit=data.fitCalibration(selectedRows.map(point=>({x:point.x,y:point.y})));
+    const consistency=data.curveConsistency(selectedRows.map(point=>({x:point.x,y:point.y})));
+    const fit=consistency.fit;
+    const offCurve=new Set(consistency.offCurve);
     const virtualSource=selectedRows.find(point=>/^(simulation|demo|test)$/i.test(String(point.row.source||"")))?.row.source;
     const virtualLabel=selectedRows.find(point=>/(模拟|测试|demo|test|sim)/i.test(`${point.row.sample} ${point.row.run} ${point.row.time}`));
     const virtualReason=virtualSource?
@@ -84,7 +86,7 @@ export function makeUi(React, JSX) {
       }).join(" "):"";
       return h("section",{className:"candidate-calibration-plot"},
         h("div",{className:"candidate-plot-heading"},
-          h("h3",{},selected+text(locale," · 浓度–信号图"," · Concentration–signal plot")),
+          h("h3",{},selected+text(locale," · 浓度–信号一致性"," · Concentration–signal consistency")),
           h("span",{},fit?`${fit.model} · R² ${Math.max(-9.999,fit.r2).toFixed(3)}`:text(locale,"数据不足","Insufficient data"))),
         h("svg",{className:"curve-chart",viewBox:`0 0 ${width} ${height}`,role:"img",
           "aria-label":text(locale,`${selected} 数据拟合图`,`${selected} fitted data plot`)},
@@ -97,18 +99,22 @@ export function makeUi(React, JSX) {
           fitPath&&h("path",{d:fitPath,className:"calibration-fit-line"}),
           ...selectedRows.map((point,index)=>h("circle",{
             key:point.row.id+"-"+index,cx:px(point.x),cy:py(point.y),r:6,
-            className:"calibration-dot"+(data.recordStatus(point.row).code==="NORMAL"?"":" qc-alert")
+            className:"calibration-dot"+(data.recordStatus(point.row).code==="NORMAL"?"":" qc-alert")+(offCurve.has(index)?" off-curve":"")
           },h("title",{},`${sampleText(locale,point.row.sample)||point.row.well} · ${data.formatNumber(point.x)} ${selectedUnit} · ${data.formatNumber(point.y)}`))),
           h("text",{x:(left+width-right)/2,y:height-7,textAnchor:"middle",className:"axis-label"},
-            text(locale,"已知浓度","Known concentration")+(selectedUnit?` (${selectedUnit})`:"")),
+            text(locale,"仪器报告浓度","Instrument-reported concentration")+(selectedUnit?` (${selectedUnit})`:"")),
           h("text",{x:left+8,y:16,className:"axis-label"},text(locale,"采集信号","Signal"))),
-        fit&&h("div",{className:"fit-summary"},fit.model==="4PL"?
-          `4PL · Bottom ${data.formatNumber(fit.bottom)} · Top ${data.formatNumber(fit.top)} · EC50 ${data.formatNumber(fit.ec50)} · Hill ${data.formatNumber(fit.hill)}`:
-          text(locale,"线性拟合","Linear fit")+` · y = ${data.formatNumber(fit.slope)}x + ${data.formatNumber(fit.intercept)}`),
-        h("p",{},selectedRows.length+text(locale," 个浓度–信号点已完成自动分析。"," concentration–signal pairs analyzed.")),
+        fit&&h("div",{className:"fit-summary"+(offCurve.size?" has-off-curve":"")},offCurve.size?
+          text(locale,`${offCurve.size} 个点偏离曲线：请检查这些记录的传输、固件换算或标定版本。`,
+            `${offCurve.size} point(s) off the curve: check transmission, firmware conversion or calibration version for these records.`):
+          text(locale,`全部 ${selectedRows.length} 个点落在同一条曲线上，仪器换算前后一致。`,
+            `All ${selectedRows.length} points follow a single curve; the instrument conversion is consistent.`)),
+        h("p",{},text(locale,
+          `参考线为描述性${fit?.model==="4PL"?" 4PL ":"线性"}拟合，仅用于检查一致性，不是仪器标定曲线；标定在仪器固件中完成。`,
+          `The reference line is a descriptive ${fit?.model==="4PL"?"4PL":"linear"} fit used only to check consistency. It is not the instrument calibration, which is performed in the firmware.`)),
         fit&&fit.r2<.9&&h("p",{className:"analysis-warning"},text(locale,
-          `拟合度较低（R² ${fit.r2.toFixed(3)}），数据离散较大或当前模型不适合。`,
-          `Low fit quality (R² ${fit.r2.toFixed(3)}); the data are dispersed or the model is unsuitable.`)),
+          `一致性较低（R² ${fit.r2.toFixed(3)}）：结果可能来自不同标定版本，或混入了其他激素的数据。`,
+          `Low consistency (R² ${fit.r2.toFixed(3)}): results may come from different calibration versions or include another analyte.`)),
         fit&&virtualReason&&h("p",{className:"analysis-warning"},text(locale,
           `这些数据可能是模拟或测试数据：${virtualReason}。分析结果仅供流程检查。`,
           `These may be simulated or test data because ${virtualReason}. Use the analysis for workflow checks only.`)));
@@ -116,15 +122,15 @@ export function makeUi(React, JSX) {
     return h("section",{className:"panel calibration-state"},
       h("div",{className:"calibration-heading"},
         h("div",{},
-          h("h2",{},text(locale,"数据拟合分析","Data fitting analysis")),
+          h("h2",{},text(locale,"换算一致性检查","Conversion consistency check")),
           h("p",{},text(locale,
-            "系统会按分析物分别读取 value 与 signal，并自动选择线性或 4PL 模型进行拟合。",
-            "The system reads value and signal for each analyte and automatically fits a linear or 4PL model.")))),
+            "浓度由仪器固件按标定曲线换算。本页把仪器报告的浓度与采集信号作图，检查同一激素的所有结果是否落在同一条曲线上。这不是仪器标定。",
+            "Concentrations are calculated by the instrument firmware from its calibration curve. This view plots instrument-reported concentration against signal to check that all results for one hormone follow a single curve. It is not the instrument calibration.")))),
       h("button",{type:"button",className:"import-button calibration-import",onClick:onImport},
-        text(locale,"导入数据并分析","Import and analyze")),
+        text(locale,"导入数据并检查","Import and check")),
       h("p",{className:"calibration-format"},text(locale,
-        "分析字段：analyte、value、unit、signal；同一分析物至少需要 2 个不同的 value。",
-        "Analysis fields: analyte, value, unit and signal. Each analyte needs at least 2 distinct values.")),
+        "所需字段：analyte、value、unit、signal；同一激素至少需要 2 个不同的 value。",
+        "Required fields: analyte, value, unit and signal. Each hormone needs at least 2 distinct values.")),
       h("div",{className:"calibration-progress","aria-label":text(locale,"分析数据点数量","Analysis data points")},
         ...analytes.map(analyte=>{
           const count=countPairs(analyte),ready=count>=2;
@@ -132,7 +138,7 @@ export function makeUi(React, JSX) {
             h("strong",{},analyte),
             h("span",{className:ready?"ready":"pending"},
               count+text(locale," 个数据点"," data points")),
-            h("small",{},ready?text(locale,"可进行拟合分析","Ready for fitting"):
+            h("small",{},ready?text(locale,"可进行检查","Ready to check"):
               text(locale,"至少需要 2 个","At least 2 required")));
         })),
       plot||totalPairs>0&&h("div",{className:"candidate-plot-empty"},text(locale,
