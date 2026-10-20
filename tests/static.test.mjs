@@ -6,8 +6,8 @@ const root = path.resolve(import.meta.dirname, "..");
 const read = file => readFile(path.join(root, file), "utf8");
 
 const bootstrap = await read("assets/bootstrap-results-v2.js");
-assert.match(bootstrap, /\.createRoot\(/);
-assert.doesNotMatch(bootstrap, /hydrateRoot/);
+assert.match(bootstrap, /\.hydrateRoot\(/);
+assert.doesNotMatch(bootstrap, /createRoot/);
 
 const html = await read("index.html");
 assert.match(html, /<div id="plantsos-root"><\/div>/);
@@ -37,3 +37,16 @@ for (const file of [
 }
 
 console.log("PASS: startup, locale, recent records, BLE QC and cleanup checks.");
+
+// Guard: the vendored React DOM bundle only ships the APIs it was built with.
+{
+  const {readFileSync} = await import("node:fs");
+  const boot = readFileSync(new URL("../assets/bootstrap-results-v2.js", import.meta.url), "utf8");
+  const framework = readFileSync(new URL("../assets/framework-CXnKph_e.js", import.meta.url), "utf8");
+  for (const api of ["createRoot", "hydrateRoot"]) {
+    if (boot.includes(`.${api}(`) && !framework.includes(`.${api}=function`)) {
+      throw new Error(`bootstrap calls ${api}, but the vendored React DOM bundle does not export it`);
+    }
+  }
+  console.log("PASS: bootstrap uses a React DOM API present in the vendored bundle.");
+}
